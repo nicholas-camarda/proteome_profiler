@@ -30,13 +30,12 @@ source(file.path("scripts", "array_helper_scripts.R"))
 # ref_coords_to_make_filter <- c("H1,2", "H3,4", "G1,2", "G3,4", "F9,10", "F11,12", "E9,10", "E11,12")
 # my_group_lvls <- c("Vehicle", "Sorafenib", "Sor + Dox", "Sor + Lis")
 
-# VEGFRi Dox cytokine XL example
-info_fn <- "output/cytoXL array kit - protocol.xlsx"
-data_dir <- "arrays/Veh vs Sor Dox Lis - Cytokine XL/data"
-output_dir <- "output/plots/nick/cytokine_xl_array"
-ref_coords_to_make_filter <- c("H1,2", "H3,4", "G1,2", "G3,4", "F9,10", "F11,12", "E9,10", "E11,12")
-
-my_group_lvls <- c("vehicle", "sorafenib", "sor + dox", "sor + lis")
+example_config <- get_analysis_config("vegfri_dox_cytokine_xl")
+info_fn <- example_config$info_fn
+data_dir <- example_config$data_dir
+output_dir <- example_config$output_dir
+ref_coords_to_make_filter <- example_config$ref_coords_to_make_filter
+my_group_lvls <- example_config$group_levels
 info_fn <- resolve_project_path(info_fn, must_exist = TRUE)
 data_dir <- resolve_project_path(data_dir, must_exist = TRUE)
 output_dir <- resolve_project_path(output_dir, must_exist = FALSE)

@@ -10,7 +10,6 @@ required_packages <- c(
     "progressr",
     "future",
     "furrr",
-    "dotenv",
     "ggforce",
     "readr"
 )

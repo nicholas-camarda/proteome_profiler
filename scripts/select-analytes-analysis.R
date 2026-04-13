@@ -12,18 +12,16 @@ source(file.path("scripts", "project_paths.R"))
 source(file.path("scripts", "array_helper_scripts.R"))
 
 #' @Number1
-# info_fn <- "output/Mouse Angiogenesis Array Kit - Protocol.xlsx"
-# data_dir <- "arrays/Veh vs Sor Dox Lis - Angiogenesis Protein Array/data"
-# output_dir <- "output/plots/nick/angiogenesis_array"
-info_fn <- "output/cytoXL array kit - protocol.xlsx"
-data_dir <- "arrays/Veh vs Sor Dox Lis - Cytokine XL/data"
-output_dir <- "output/plots/nick/cytokine_xl_array"
+example_config <- get_analysis_config("vegfri_dox_cytokine_xl")
+info_fn <- example_config$info_fn
+data_dir <- example_config$data_dir
+output_dir <- example_config$output_dir
 info_fn <- resolve_project_path(info_fn, must_exist = TRUE)
 data_dir <- resolve_project_path(data_dir, must_exist = TRUE)
 output_dir <- resolve_project_path(output_dir, must_exist = FALSE)
 dir.create(output_dir, showWarnings = FALSE, recursive = TRUE)
 
-my_group_lvls <- c("vehicle", "sorafenib", "sor + dox", "sor + lis")
+my_group_lvls <- example_config$group_levels
 
 # # CytoXL labels
 # already_performed_ELISAs <- tibble(Name = c(
@@ -73,15 +71,16 @@ df <- make_plot_ready_dataset(
 )
 
 # CHANGE THIS FOR REF THRESH FILTERING
-my_ref_thresh <- 150
-sor_thresh <- 1.49
+my_ref_thresh <- example_config$ref_thresh_to_filter[[1]]
+sor_thresh <- example_config$selection_threshold
 
 special_lst_obj <- make_wf_data(df,
     my_main_threshold = sor_thresh, ref_thresh_to_filter_ = my_ref_thresh,
-    comparisons = list("vehicle" = c("sorafenib"))
+    comparisons = setNames(list(c(example_config$selection_group)), example_config$selection_control)
 )
-special_wf <- special_lst_obj$`vehicle vs sorafenib`$wf_dat$sorafenib
-special_dat <- special_lst_obj$`vehicle vs sorafenib`$dat_filtered$sorafenib
+result_key <- qq("@{example_config$selection_control} vs @{example_config$selection_group}")
+special_wf <- special_lst_obj[[result_key]]$wf_dat[[example_config$selection_group]]
+special_dat <- special_lst_obj[[result_key]]$dat_filtered[[example_config$selection_group]]
 # fc_lst <- log2_fold_change_to_raw_fc(sor_log2_thresh)
 # upper_thresh <- fc_lst[[1]]
 # lower_thresh <- fc_lst[[2]]

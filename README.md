@@ -1,17 +1,21 @@
 # proteome_profiler
 
-Exploratory analysis scripts for membrane-based proteome profiler arrays, with the current working example centered on the VEGFRi/Dox in-vivo mouse project.
+Exploratory analysis scripts for membrane-based proteome profiler arrays.
 
 The active workflow reads LI-COR spot-intensity exports, averages duplicate membrane spots into one analyte-level signal, normalizes each treatment arm to the control arm, and writes waterfall/barplot outputs for follow-up review.
 
 ## Current supported example
 
-The tested handoff path in this repo is:
+The shared config lives in [scripts/project_paths.R](/Users/ncamarda/Projects/proteome_profiler/scripts/project_paths.R). Edit that file once for your machine and project layout.
+
+The VEGFRi/Dox entry in that file is an example configuration, not a required directory structure.
+
+Example layout:
 
 - Project repo: `/Users/ncamarda/Projects/proteome_profiler`
 - Runtime/output root: `/Users/ncamarda/ProjectsRuntime/proteome_profiler`
-- Cloud data root: `/Users/ncamarda/Library/CloudStorage/OneDrive-Personal/phd/projects/VEGFRi and Dox/in-vivo mouse projects/proteome_profiler`
-- Example dataset: `projects/Veh vs Sor Dox Lis - Cytokine XL`
+- Cloud parent directory: `/Users/ncamarda/Library/CloudStorage/OneDrive-Personal/phd/projects/VEGFRi and Dox/in-vivo mouse projects`
+- Example dataset under that parent: `proteome_profiler/projects/Veh vs Sor Dox Lis - Cytokine XL`
 
 ## What The Analysis Does
 
@@ -38,20 +42,18 @@ What each script does:
 
 - [scripts/install_packages.R](/Users/ncamarda/Projects/proteome_profiler/scripts/install_packages.R): installs required CRAN packages.
 - [scripts/find_ref_thresh.R](/Users/ncamarda/Projects/proteome_profiler/scripts/find_ref_thresh.R): helps inspect low-signal regions for the VEGFRi/Dox cytokine example.
-- [scripts/main.R](/Users/ncamarda/Projects/proteome_profiler/scripts/main.R): runs the main VEGFRi/Dox cytokine pipeline from the example `.env` file.
+- [scripts/main.R](/Users/ncamarda/Projects/proteome_profiler/scripts/main.R): runs the main pipeline using the example config in `scripts/project_paths.R`.
 - [scripts/select-analytes-analysis.R](/Users/ncamarda/Projects/proteome_profiler/scripts/select-analytes-analysis.R): produces a sorafenib-focused shortlist view for the same dataset.
 
-## Path Overrides
+## Path Setup
 
-If a collaborator stores the runtime or cloud roots elsewhere, they can override the defaults with:
+Edit [scripts/project_paths.R](/Users/ncamarda/Projects/proteome_profiler/scripts/project_paths.R) and set:
 
-```bash
-export PROTEOME_PROFILER_RUNTIME_ROOT="/path/to/ProjectsRuntime/proteome_profiler"
-export PROTEOME_PROFILER_CLOUD_ROOT="/path/to/cloud/proteome_profiler"
-export PROTEOME_PROFILER_ENV_FILE="/path/to/dox_cytokine_xl_array.env"
-```
+- `runtime_root`
+- `cloud_parent`
+- the example or project-specific analysis entry you want to run
 
-The main script defaults to the tested VEGFRi/Dox example env file when `PROTEOME_PROFILER_ENV_FILE` is not set.
+That one script is the only place you need to change paths for a new machine or project layout.
 
 ## Output Locations
 
