@@ -44,8 +44,8 @@ proteome_profiler_config <- list(
         ),
         replicate_aware_template = list(
             mode = "replicate",
-            user = "analyst_name",
-            slug = "example_array_analysis",
+            user = "nicole",
+            slug = "mf_veh_vs_aldo",
             protocol = list(
                 preset = "cytokine_xl",
                 workbook = "output/cytoXL array kit - protocol.xlsx",
@@ -53,7 +53,7 @@ proteome_profiler_config <- list(
                 pages = c(17, 18, 19)
             ),
             input = list(
-                manifest = "manifests/example_samples.csv",
+                manifest = "manifests/example_samples.csv", ## change
                 subgroup = "sex",
                 treatment = "treatment"
             ),
@@ -61,8 +61,8 @@ proteome_profiler_config <- list(
                 control = c("treated")
             ),
             thresholds = list(
-                ref_coords = c("A3,4"),
-                ref_signal = c(150)
+                ref_coords = c("A3,4"), ## change
+                ref_signal = c(150) ## change
             ),
             stats = list(
                 min_reps_per_arm = 2,
