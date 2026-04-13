@@ -69,7 +69,7 @@ You do not need to copy the VEGFRi/Dox structure.
 
 To run your own project, you edit one analysis entry in [scripts/config/analysis_config.R](scripts/config/analysis_config.R) and point it at your own files. The shipped VEGFRi/Dox entry is only a worked reference.
 
-The active analysis is selected by `PROTEOME_PROFILER_ANALYSIS`. The shared config does not silently choose one for you.
+The active analysis is usually selected with `PROTEOME_PROFILER_ANALYSIS`. If you prefer, `scripts/config/analysis_config.R` can also define `default_analysis` as a local convenience.
 
 ### Minimal Legacy Analysis Entry
 
@@ -192,7 +192,7 @@ Replicate-aware input fields:
 
 ### Step 3: Put The Input Files In Place
 
-All analyses are configured through `input$manifest`. The manifest is the source of truth for workbook locations and experimental design.
+For the supported user-facing workflow, configure inputs through `input$manifest`. The manifest is the source of truth for workbook locations and experimental design.
 
 For both modes:
 
