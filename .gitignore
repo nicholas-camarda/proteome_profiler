@@ -5,5 +5,6 @@
 .github/
 .pytest_cache/
 Rplots.pdf
+tests/test_output/
 
 analysis_registry.yaml

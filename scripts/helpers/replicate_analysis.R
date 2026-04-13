@@ -699,13 +699,22 @@ plot_inferential_waterfall <- function(results_tbl, title) {
         filter(test_status == "tested") %>%
         arrange(desc(effect_estimate_log2)) %>%
         mutate(
-            Name = factor(Name, levels = Name),
-            fill_flag = if_else(significant, "significant", "not_significant")
+            Name = factor(Name, levels = Name)
         )
 
-    ggplot(plot_data, aes(x = Name, y = effect_estimate_log2, fill = fill_flag)) +
+    fill_limit <- max(abs(plot_data$effect_estimate_log2), na.rm = TRUE)
+
+    ggplot(plot_data, aes(x = Name, y = effect_estimate_log2, fill = effect_estimate_log2)) +
         geom_col(show.legend = FALSE) +
-        scale_fill_manual(values = c(significant = "#B53530", not_significant = "#9BB3D3")) +
+        # Match the legacy waterfall semantics: negative effects trend blue,
+        # positive effects trend red, and near-zero effects fade toward gray.
+        scale_fill_gradient2(
+            low = "blue",
+            mid = "gray",
+            high = "red",
+            midpoint = 0,
+            limits = c(-fill_limit, fill_limit)
+        ) +
         labs(
             title = str_wrap(title, width = 55),
             subtitle = str_wrap("Effect estimate is treatment minus control on the log2 signal scale", width = 70),
