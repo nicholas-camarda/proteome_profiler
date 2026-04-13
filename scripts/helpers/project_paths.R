@@ -357,7 +357,7 @@ validate_analysis_config <- function(example_config) {
 
 #' Return the root output directory for one analysis configuration
 #'
-#' Every analysis writes into `output/plots/<user>/<analysis_slug>/` so outputs
+#' Every analysis writes into `output/<user>/<analysis_slug>/` so outputs
 #' remain grouped by analyst and by analysis.
 #'
 #' @param example_config Named list returned by `get_analysis_config()`.
@@ -369,7 +369,7 @@ get_analysis_output_root <- function(example_config) {
     # This keeps collaborator outputs separated even when they share the same
     # runtime workspace or cloud-backed project tree.
     resolve_project_path(
-        file.path("output", "plots", example_config$user, example_config$analysis_slug),
+        file.path("output", example_config$user, example_config$analysis_slug),
         must_exist = FALSE
     )
 }

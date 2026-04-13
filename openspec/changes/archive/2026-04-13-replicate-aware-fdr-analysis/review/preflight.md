@@ -12,7 +12,7 @@
 - Runtime root: `proteome_profiler_config$runtime_root`
 - Cloud fallback root: `proteome_profiler_config$cloud_parent/proteome_profiler`
 - Path resolution order: `repo -> runtime_root -> cloud project root`
-- New outputs are written under `runtime_root/output/plots/<user>/<analysis_slug>/`
+- New outputs are written under `runtime_root/output/<user>/<analysis_slug>/`
 
 ## Active Entrypoints
 

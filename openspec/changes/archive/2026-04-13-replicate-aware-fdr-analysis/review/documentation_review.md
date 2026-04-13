@@ -11,7 +11,6 @@
 ## Remaining Follow-Ups
 
 - Documentation still contains machine-local absolute file links and some maintainer-specific path examples. That is portability debt, not a methodological blocker.
-- The output root still uses `output/plots/...` even though non-plot artifacts live there too. This is naming debt, not a correctness blocker.
 
 ## Assessment
 

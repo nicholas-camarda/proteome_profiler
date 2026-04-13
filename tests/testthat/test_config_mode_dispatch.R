@@ -159,7 +159,7 @@ test_that("analysis output roots are grouped by user and analysis slug", {
     )
 
     output_root <- get_analysis_output_root(config)
-    expect_true(grepl("output/plots/lauren/replicate_example$", output_root))
+    expect_true(grepl("output/lauren/replicate_example$", output_root))
 })
 
 test_that("selected analysis name comes from env input or optional config default", {

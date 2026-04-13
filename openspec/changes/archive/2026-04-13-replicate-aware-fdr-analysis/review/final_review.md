@@ -19,7 +19,6 @@
 ## Remaining Non-Blocking Follow-Ups
 
 - Clean up portability debt in docs and machine-local path examples.
-- Consider renaming `output/plots/` to a less misleading root in a future cleanup change.
 - Add deeper image-content assertions and larger workbook-level import fixtures if future analysis complexity warrants them.
 
 ## Bottom Line

@@ -350,7 +350,7 @@ This script should be run after `main.R`.
 All outputs are grouped by user, then analysis:
 
 ```text
-output/plots/<user>/<slug>/
+output/<user>/<slug>/
 ```
 
 Within that root:

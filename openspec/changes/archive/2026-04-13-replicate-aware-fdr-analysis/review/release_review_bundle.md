@@ -46,10 +46,10 @@ Observed non-blocking warnings during R verification:
 
 ## Runtime And Output Artifacts Reviewed
 
-- Legacy threshold diagnostics under `output/plots/<user>/<analysis_slug>/threshold_diagnostics/`
-- Legacy exploratory outputs under `output/plots/<user>/<analysis_slug>/main_analysis/`
-- Replicate-aware inferential outputs under `output/plots/<user>/<analysis_slug>/inferential_results/`
-- Replicate-aware shortlist outputs under `output/plots/<user>/<analysis_slug>/select_analytes/comparisons/<comparison_slug>/`
+- Legacy threshold diagnostics under `output/<user>/<analysis_slug>/threshold_diagnostics/`
+- Legacy exploratory outputs under `output/<user>/<analysis_slug>/main_analysis/`
+- Replicate-aware inferential outputs under `output/<user>/<analysis_slug>/inferential_results/`
+- Replicate-aware shortlist outputs under `output/<user>/<analysis_slug>/select_analytes/comparisons/<comparison_slug>/`
 
 ## Review Lanes
 
