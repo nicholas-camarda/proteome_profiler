@@ -143,6 +143,6 @@ test_that("replicate-aware entry scripts run end-to-end on fixture data", {
     expect_true(all(!is.na(run_index$result_path)))
     expect_true(all(file.exists(as.character(run_index$result_path))))
     expect_true("any_low_replication_warning" %in% names(run_index))
-    expect_equal(shortlist_summary$shortlist_basis[[1]], "significant")
+    expect_equal(shortlist_summary$shortlist_basis[[1]], "fdr_lt_0_20")
     expect_equal(female_shortlist_summary$shortlist_basis[[1]], "top_n_fallback")
 })

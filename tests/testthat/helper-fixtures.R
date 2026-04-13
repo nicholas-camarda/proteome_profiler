@@ -87,6 +87,54 @@ create_replicate_manifest <- function(path, data_dir) {
     path
 }
 
+write_collaborator_style_sheet <- function(wb, sheet_name, analyte_signals) {
+    stopifnot(length(analyte_signals) == 4)
+
+    spot_names <- sprintf("A%02d", seq_len(length(analyte_signals) * 2))
+    signal_rows <- unlist(map(analyte_signals, ~ c(.x, .x)), use.names = FALSE)
+    normalized_rows <- signal_rows / max(signal_rows[is.finite(signal_rows)], na.rm = TRUE)
+
+    sheet_df <- tibble(
+        `Spot Name` = spot_names,
+        Signal = signal_rows,
+        !!sheet_name := normalized_rows
+    )
+
+    addWorksheet(wb, sheet_name)
+    writeData(wb, sheet_name, sheet_df, startRow = 1)
+}
+
+create_multisheet_replicate_workbook <- function(path) {
+    dir.create(dirname(path), recursive = TRUE, showWarnings = FALSE)
+
+    wb <- createWorkbook()
+    addWorksheet(wb, "ALL DATA")
+    writeData(wb, "ALL DATA", tibble(`Spot Name` = "A01", Summary = 1), startRow = 1)
+    addWorksheet(wb, "Benjamini Hochberg")
+    writeData(wb, "Benjamini Hochberg", tibble(`Spot Name` = "A01", `M p-value` = 0.05), startRow = 1)
+
+    write_collaborator_style_sheet(wb, "M01_sheet", c(100, 60, 500, 20))
+    write_collaborator_style_sheet(wb, "M02_sheet", c(102, 61, 500, 21))
+    write_collaborator_style_sheet(wb, "M03_sheet", c(250, 62, 500, 19))
+    write_collaborator_style_sheet(wb, "M04_sheet", c(260, 63, 500, 18))
+
+    saveWorkbook(wb, path, overwrite = TRUE)
+
+    path
+}
+
+create_multisheet_replicate_manifest <- function(path, workbook_path) {
+    manifest <- tibble(
+        sample_id = c("M01", "M02", "M03", "M04"),
+        workbook_path = rep(workbook_path, 4),
+        sheet_name = c("M01_sheet", "M02_sheet", "M03_sheet", "M04_sheet"),
+        treatment = c("control", "control", "treated", "treated"),
+        sex = c("male", "male", "male", "male")
+    )
+    write_csv(manifest, path)
+    path
+}
+
 #' Create sample metadata for a larger replicate-aware stress fixture
 #'
 #' This fixture is intentionally more realistic than the smoke fixture: it uses
@@ -149,7 +197,8 @@ create_complex_replicate_sample_data <- function() {
         left_join(sample_meta, by = "sample_id") %>%
         mutate(
             Sname = Coordinate,
-            workbook_path = "synthetic"
+            workbook_path = "synthetic",
+            normalized_signal = signal / 100
         )
 }
 

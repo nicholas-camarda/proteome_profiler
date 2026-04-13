@@ -30,6 +30,64 @@ test_that("sample manifest validation catches blank required values", {
     )
 })
 
+test_that("multi-sheet workbooks require a manifest sheet_name", {
+    tmp_dir <- tempfile("manifest-multisheet-missing-")
+    dir.create(tmp_dir)
+    workbook_path <- file.path(tmp_dir, "collaborator.xlsx")
+    manifest_path <- file.path(tmp_dir, "manifest.csv")
+
+    create_multisheet_replicate_workbook(workbook_path)
+    readr::write_csv(
+        tibble(
+            sample_id = c("M01", "M02"),
+            workbook_path = rep(workbook_path, 2),
+            treatment = c("control", "treated"),
+            sex = c("male", "male")
+        ),
+        manifest_path
+    )
+
+    manifest_tbl <- read_sample_manifest(manifest_path, subgroup_var = "sex", treatment_var = "treatment")
+
+    expect_error(
+        resolve_manifest_workbook_paths(manifest_tbl),
+        "contains multiple sheets"
+    )
+})
+
+test_that("replicate-aware dataset can read one workbook with many sample sheets", {
+    tmp_dir <- tempfile("replicate-multisheet-")
+    dir.create(tmp_dir)
+    protocol_path <- file.path(tmp_dir, "protocol.xlsx")
+    workbook_path <- file.path(tmp_dir, "collaborator.xlsx")
+    manifest_path <- file.path(tmp_dir, "manifest.csv")
+
+    write_protocol_fixture(protocol_path)
+    create_multisheet_replicate_workbook(workbook_path)
+    create_multisheet_replicate_manifest(manifest_path, workbook_path)
+
+    analyte_info <- readxl::read_excel(protocol_path) %>%
+        mutate(sname_grouping = row_number()) %>%
+        rename(Name = `Analyte/Control`)
+
+    manifest_tbl <- read_sample_manifest(manifest_path, subgroup_var = "sex", treatment_var = "treatment") %>%
+        resolve_manifest_workbook_paths()
+
+    sample_df <- build_sample_level_dataset(
+        manifest = manifest_tbl,
+        analyte_info = analyte_info,
+        treatment_var = "treatment",
+        subgroup_var = "sex"
+    )
+
+    expect_equal(length(unique(sample_df$sample_id)), 4)
+    expect_equal(nrow(sample_df %>% filter(Name == "Analyte A")), 4)
+    expect_true(all(sample_df$sheet_name %in% c("M01_sheet", "M02_sheet", "M03_sheet", "M04_sheet")))
+    expect_true(all(sample_df$workbook_path == normalizePath(workbook_path, winslash = "/", mustWork = TRUE)))
+    expect_true("normalized_signal" %in% names(sample_df))
+    expect_true(any(is.finite(sample_df$normalized_signal)))
+})
+
 test_that("replicate-aware dataset preserves one row per analyte by sample", {
     tmp_dir <- tempfile("replicate-valid-")
     dir.create(tmp_dir)
@@ -272,10 +330,12 @@ test_that("strong replicate-aware fixture exercises BH, uneven subgroups, and pa
     moderate_a <- male_drug_a %>% filter(Name == "Analyte Moderate A")
     expect_lt(moderate_a$raw_p_value[[1]], 0.05)
     expect_gt(moderate_a$adjusted_p_value[[1]], 0.05)
-    expect_false(moderate_a$significant[[1]])
+    expect_true(moderate_a$raw_p_lt_alpha[[1]])
+    expect_false(is.na(moderate_a$fdr_lt_0_20[[1]]))
 
     strong_a <- male_drug_a %>% filter(Name == "Analyte Strong A")
-    expect_true(strong_a$significant[[1]])
+    expect_true(strong_a$fdr_lt_0_20[[1]])
+    expect_true(strong_a$fdr_lt_0_25[[1]])
 
     female_missing <- female_drug_b %>% filter(Name == "Analyte Missing")
     expect_equal(female_missing$test_status[[1]], "not_testable")
@@ -289,4 +349,33 @@ test_that("strong replicate-aware fixture exercises BH, uneven subgroups, and pa
         filter(subgroup == "female")
     expect_true(all(female_run_index$any_low_replication_warning))
     expect_true(all(female_run_index$min_control_n == 2))
+})
+
+test_that("normalized t-test uses normalized sheet values", {
+    sample_df <- create_complex_replicate_sample_data()
+
+    results <- run_within_stratum_differential_analysis(
+        sample_data = sample_df,
+        comparisons = list("control" = c("drug_a")),
+        subgroup_var = "sex",
+        p_adjust_method = "BH",
+        alpha = 0.05,
+        min_reps = 2,
+        low_signal_threshold = 70,
+        analysis_method = "normalized_t_test"
+    )
+
+    male_drug_a <- results$results[["male_control_vs_drug_a"]]
+    strong_a <- male_drug_a %>% filter(Name == "Analyte Strong A")
+    expected_p <- with(
+        sample_df %>% filter(sex == "male", treatment %in% c("control", "drug_a"), Name == "Analyte Strong A"),
+        stats::t.test(normalized_signal ~ treatment, var.equal = TRUE)$p.value
+    )
+
+    expect_equal(strong_a$analysis_method[[1]], "normalized_t_test")
+    expect_equal(strong_a$analysis_method_label[[1]], get_inferential_method_spec("normalized_t_test")$label)
+    expect_equal(strong_a$raw_p_value[[1]], expected_p)
+    expect_true(is.finite(strong_a$fold_change_ratio[[1]]))
+    expect_true(is.finite(strong_a$control_mean_normalized[[1]]))
+    expect_true(is.finite(strong_a$treatment_mean_normalized[[1]]))
 })

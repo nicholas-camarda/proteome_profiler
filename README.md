@@ -105,7 +105,7 @@ my_project = list(
 
 ### Minimal Replicate-Aware Analysis Entry
 
-Use this shape when you have one workbook per biological sample and want inferential testing:
+Use this shape when each biological sample is declared in the manifest and you want inferential testing:
 
 ```r
 my_project = list(
@@ -196,7 +196,7 @@ For the supported user-facing workflow, configure inputs through `input$manifest
 
 For both modes:
 
-- put one LI-COR workbook per sample in whatever location you want
+- put one LI-COR workbook per sample in whatever location you want, or reuse the same workbook path across many manifest rows when one collaborator file contains one sample per sheet
 - define sample identity and design in a manifest
 
 Required manifest columns:
@@ -205,20 +205,26 @@ Required manifest columns:
 - `workbook_path`
 - `treatment`
 
+Optional manifest columns:
+
+- `sheet_name`
+  - required when `workbook_path` points to a workbook with more than one sheet
+  - use this when a collaborator gives you one `.xlsx` file containing one sample per sheet plus extra summary/statistics sheets
+
 Add any subgroup column you want to stratify by, for example `sex`.
 
 Example manifest:
 
 ```csv
-sample_id,workbook_path,treatment,sex
-M01,data/m01.xlsx,vehicle,male
-M02,data/m02.xlsx,vehicle,male
-M03,data/m03.xlsx,aldosterone,male
-M04,data/m04.xlsx,aldosterone,male
-F01,data/f01.xlsx,vehicle,female
-F02,data/f02.xlsx,vehicle,female
-F03,data/f03.xlsx,aldosterone,female
-F04,data/f04.xlsx,aldosterone,female
+sample_id,workbook_path,sheet_name,treatment,sex
+M01,data/collaborator_export.xlsx,MV1,vehicle,male
+M02,data/collaborator_export.xlsx,MV2,vehicle,male
+M03,data/collaborator_export.xlsx,MA1,aldosterone,male
+M04,data/collaborator_export.xlsx,MA2,aldosterone,male
+F01,data/collaborator_export.xlsx,FV1,vehicle,female
+F02,data/collaborator_export.xlsx,FV2,vehicle,female
+F03,data/collaborator_export.xlsx,FA1,aldosterone,female
+F04,data/collaborator_export.xlsx,FA2,aldosterone,female
 ```
 
 In both modes, filenames should not be treated as the source of truth. The manifest is.
@@ -321,6 +327,33 @@ What `main.R` does in replicate-aware mode:
 8. adjusts p-values within each comparison family using the configured method, default `BH`
 9. writes inferential results under `inferential_results/`
 
+Replicate-aware effect-size reporting:
+
+- `raw_log2_lm` and `normalized_t_test` are different analyses and their fold-change columns are not interchangeable.
+- `raw_log2_lm` reports a raw-signal model effect on the `log2(signal)` scale and derives fold change as `2^(model coefficient)`.
+- `normalized_t_test` recomputes workbook-style normalized replicate values from raw signals and reports fold change as `mean(treatment normalized) / mean(control normalized)` only when both group means are positive.
+- when that ratio-scale fold change is not interpretable, the output leaves `fold_change_ratio` as `NA` and explains the omission in `fold_change_status` and `fold_change_note`.
+- BH correction uses only the analytes that produced a valid p-value in that comparison family.
+
+Replicate-aware statistical methods:
+
+- `raw_log2_lm` fits one per-analyte linear model `log2(signal) ~ treatment` within each subgroup.
+- in plain language, for one analyte at a time, it takes the averaged duplicate-spot signal from each biological sample, keeps only samples where that averaged signal is finite and greater than zero, log2-transforms those per-sample values, and then compares treated versus control on that log2 scale.
+- its null hypothesis is that treatment and control have the same mean `log2(signal)` for that analyte within that subgroup.
+- the reported coefficient is treatment minus control on the log2 raw-signal scale, so a value of `+1` means the treated group is estimated to be `2x` the control group on the raw-signal scale and a value of `-1` means the treated group is estimated to be `0.5x` the control group.
+- the corresponding p-value tests whether that treatment coefficient is different from zero for that analyte.
+- samples with zero or negative averaged signal are not used in `raw_log2_lm` because `log2(signal)` is undefined for nonpositive values.
+- `normalized_t_test` first recomputes workbook-style normalized replicate values from the raw signals for each analyte.
+- it then runs a two-sided equal-variance two-sample t-test on those normalized replicate values within each subgroup.
+- its null hypothesis is that treatment and control have the same mean normalized signal for that analyte within that subgroup.
+- these methods can disagree because they test different quantities on different scales: one models raw `log2(signal)`, the other tests arithmetic means of normalized values.
+
+So what this means:
+
+- if you want a method tied more directly to the raw measured intensities and effect sizes that read naturally as fold changes, prefer `raw_log2_lm`.
+- if you want each analyte signal divided by the sample's reference-spot intensity first, and then want treatment and control compared on that normalized scale, prefer `normalized_t_test`.
+- a disagreement between the two methods does not automatically mean one is wrong; it usually means the normalization step and the raw-signal model are emphasizing different aspects of the same data.
+
 ### Step 6: Run `select-analytes-analysis.R`
 
 Run:
@@ -365,8 +398,28 @@ Within that root:
 `inferential_results/` exists only for replicate-aware analyses and contains:
 
 - `run_index.tsv`
-- `combined_results.xlsx`
+- `raw_log2_lm_results.xlsx`
+- `normalized_t_test_results.xlsx`
+- `comparison_workbook.xlsx`
+- `methods_overview.md`
 - `comparisons/<comparison_slug>/results.tsv`
+- `comparisons/<comparison_slug>/<method>_waterfall.png`
+- `comparisons/<comparison_slug>/<method>_waterfall_raw_p_lt_alpha.png`
+- `comparisons/<comparison_slug>/<method>_waterfall_fdr_lt_0_20.png`
+- `comparisons/<comparison_slug>/<method>_waterfall_fdr_lt_0_25.png`
+
+Each configured replicate-aware method gets its own `<method>_results.xlsx` root workbook. `comparison_workbook.xlsx` is the side-by-side workbook that puts the configured methods on the same analyte rows.
+
+Replicate-aware inferential waterfall files:
+
+- `<method>_waterfall.png` plots all analytes with `test_status == "tested"` and a finite `effect_estimate_log2`, sorted from largest positive to largest negative effect.
+- `<method>_waterfall_raw_p_lt_alpha.png` applies the same plotting rule after filtering to analytes with `raw_p_lt_alpha == TRUE`.
+- `<method>_waterfall_fdr_lt_0_20.png` applies the same plotting rule after filtering to analytes with `fdr_lt_0_20 == TRUE`.
+- `<method>_waterfall_fdr_lt_0_25.png` applies the same plotting rule after filtering to analytes with `fdr_lt_0_25 == TRUE`.
+- For `raw_log2_lm`, `effect_estimate_log2` is the treatment coefficient from `lm(log2(signal) ~ treatment)` using one averaged raw-signal value per biological sample and keeping only finite positive signals for that analyte.
+- For `raw_log2_lm`, this coefficient is `mean(log2 treated signal) - mean(log2 control signal)` after fitting the two-group model, so positive bars indicate higher treated raw signal and negative bars indicate lower treated raw signal.
+- For `normalized_t_test`, `effect_estimate_log2` is `log2(mean(normalized treatment) / mean(normalized control))` and is only reported when both group means are positive after normalization.
+- `normalized_t_test` p-values come from a two-sided equal-variance two-sample t-test on the normalized replicate values; `raw_log2_lm` p-values come from the treatment term in the linear model.
 
 `select_analytes/` contains the focused follow-up outputs for one or more chosen comparisons.
 
@@ -417,12 +470,16 @@ Replicate-aware mode:
 - raw p-values adjusted within each comparison family
 - default multiplicity correction is `BH`
 - low-signal analytes are flagged separately rather than dropped by default before testing
+- `raw_log2_lm` and `normalized_t_test` answer related but different questions because one is fit on raw `log2(signal)` and the other is fit on workbook-style normalized replicate values
+- fold-change values should only be compared within method, not across methods
+- replicate-aware outputs use explicit threshold columns and file names: `raw_p_lt_alpha`, `fdr_lt_0_20`, and `fdr_lt_0_25`
+- replicate-aware inferential plot file names are method-specific by design; there is no generic inferential `waterfall.png`
 
 ## Methods Paragraphs
 
 ### With Biological Replicates
 
-Proteome Profiler array signals were processed in R by averaging duplicate membrane spots within each sample, mapping spot coordinates to analytes with a protocol-derived workbook, and fitting per-analyte linear models of `log2(signal)` for treatment-versus-control comparisons within each analysis stratum. Raw p-values were adjusted within each comparison family using the Benjamini-Hochberg method, and results were summarized in tabular outputs and waterfall plots. A raw-intensity threshold derived from a low-signal reference panel was used to flag low-signal analytes.
+Proteome Profiler array signals were processed in R by averaging duplicate membrane spots within each sample, mapping spot coordinates to analytes with a protocol-derived workbook, and performing per-analyte treatment-versus-control inference within each analysis stratum. The primary `raw_log2_lm` method fits `log2(signal) ~ treatment`, so the treatment coefficient estimates the difference in mean log2 raw signal between arms and is reported as both a log2 effect and `2^(coefficient)` fold change. The companion `normalized_t_test` method recomputes workbook-style normalized replicate values from the raw signals and applies a two-sided equal-variance t-test to those normalized values, reporting ratio-scale fold change only when both group means are positive. Raw p-values were adjusted within each comparison family using the Benjamini-Hochberg method, and results were summarized in tabular outputs and waterfall plots. A raw-intensity threshold derived from a low-signal reference panel was used to flag low-signal analytes.
 
 ### Without Biological Replicates
 

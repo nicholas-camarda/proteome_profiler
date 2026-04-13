@@ -50,6 +50,7 @@ manifest_tbl <- NULL
 sample_level_df <- NULL
 manifest_path <- NULL
 data_dir <- NULL
+cleanliness_output_dir <- file.path(analysis_output_root, "input_qc")
 
 if (config_uses_sample_manifest(example_config)) {
     manifest_path <- resolve_project_path(example_config$sample_manifest, must_exist = TRUE)
@@ -73,6 +74,22 @@ if (config_uses_sample_manifest(example_config)) {
         subgroup_var = example_config$subgroup_var,
         data_dir = data_dir
     )
+
+    cleanliness_paths <- write_sample_level_cleanliness_outputs(
+        sample_data = sample_level_df,
+        output_dir = cleanliness_output_dir
+    )
+    cleanliness_summary <- read_tsv(cleanliness_paths$summary, show_col_types = FALSE)
+    message(qq("Wrote sample-level input QC to @{cleanliness_output_dir}"))
+    if (cleanliness_summary$n_nonpositive_signal[[1]] > 0) {
+        message(qq(
+            paste(
+                "Found @{cleanliness_summary$n_nonpositive_signal[[1]]} nonpositive averaged signals",
+                "(negative or zero). These rows are reported in input_qc/issue_rows.tsv",
+                "and are excluded from log2-based inference for the affected analyte/arm."
+            )
+        ))
+    }
 }
 
 if (analysis_mode == "replicate") {
@@ -87,18 +104,22 @@ if (analysis_mode == "replicate") {
         message("Replicate-aware inferential mode uses the first ref_thresh_to_filter value as the low-signal flag threshold.")
     }
 
-    inferential_results <- run_within_stratum_differential_analysis(
+    analysis_methods <- validate_analysis_methods(example_config$analysis_methods)
+    message(qq("Configured inferential methods: @{paste(analysis_methods, collapse = ', ')}"))
+
+    inferential_results <- run_replicate_analysis_methods(
         sample_data = sample_level_df,
         comparisons = my_comparisons,
         subgroup_var = example_config$subgroup_var,
+        analysis_methods = analysis_methods,
         p_adjust_method = example_config$p_adjust_method,
         alpha = example_config$alpha,
         min_reps = ifelse(is.null(example_config$min_reps_per_arm), 2, example_config$min_reps_per_arm),
         low_signal_threshold = low_signal_threshold
     )
 
-    write_inferential_outputs(
-        inferential_results = inferential_results,
+    write_multi_method_inferential_outputs(
+        inferential_method_results = inferential_results,
         output_dir = output_dir
     )
 } else {

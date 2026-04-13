@@ -42,35 +42,36 @@ proteome_profiler_config <- list(
                 fold_change = 1.49
             )
         ),
-        replicate_aware_template = list(
+        nicole_mf_veh_vs_aldo = list(
             mode = "replicate",
             user = "nicole",
-            slug = "mf_veh_vs_aldo",
+            slug = "nicole_mf_veh_vs_aldo",
             protocol = list(
                 preset = "cytokine_xl",
-                workbook = "output/cytoXL array kit - protocol.xlsx",
-                pdf = "protocols/cytoXL array kit - protocol.pdf",
+                workbook = "output/cytokine array protocol_041326.xlsx",
+                pdf = "protocols/cytokine array protocol_041326.pdf",
                 pages = c(17, 18, 19)
             ),
             input = list(
-                manifest = "manifests/example_samples.csv", ## change
+                manifest = "manifests/nicole_veh_vs_aldo_mf.csv", ## change
                 subgroup = "sex",
                 treatment = "treatment"
             ),
             comparisons = list(
-                control = c("treated")
+                vehicle = c("aldosterone")
             ),
             thresholds = list(
-                ref_coords = c("A3,4"), ## change
-                ref_signal = c(150) ## change
+                ref_coords = c("E21,22", "G13,14", "E17,18", "F11,12", "D7,8", "H19,20", "F17,18", "F9,10",  "I5,6", "F13,14", "D21,22", "J17,18"), ## change
+                ref_signal = c(1500) ## change
             ),
             stats = list(
                 min_reps_per_arm = 2,
                 p_adjust_method = "BH",
-                alpha = 0.05
+                alpha = 0.05,
+                methods = c("raw_log2_lm", "normalized_t_test")
             ),
             shortlist = list(
-                comparisons = c("male_control_vs_treated", "female_control_vs_treated"),
+                comparisons = c("male_vehicle_vs_aldosterone", "female_vehicle_vs_aldosterone"),
                 top_n = 10
             )
         )

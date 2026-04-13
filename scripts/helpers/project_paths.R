@@ -249,6 +249,9 @@ normalize_analysis_config <- function(analysis_config) {
         if (!is.null(stats[["alpha"]]) && is.null(config[["alpha"]])) {
             config$alpha <- stats[["alpha"]]
         }
+        if (!is.null(stats[["methods"]]) && is.null(config[["analysis_methods"]])) {
+            config$analysis_methods <- unname(as.character(stats[["methods"]]))
+        }
     }
 
     config
@@ -271,6 +274,9 @@ get_analysis_config <- function(analysis_name) {
     config <- normalize_analysis_config(config)
     if (config_uses_sample_manifest(config) && is.null(config$p_adjust_method)) {
         config$p_adjust_method <- "BH"
+    }
+    if (get_analysis_mode(config) == "replicate" && is.null(config$analysis_methods)) {
+        config$analysis_methods <- "raw_log2_lm"
     }
     config
 }

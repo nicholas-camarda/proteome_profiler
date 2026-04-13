@@ -1,0 +1,17 @@
+sample_id,workbook_path,sheet_name,treatment,sex
+MV1,projects/Nicole Veh vs Aldo M vs F - Cytokine XL/analysis_ready-cytokine array_041326.xlsx,MV1,vehicle,male
+MV2,projects/Nicole Veh vs Aldo M vs F - Cytokine XL/analysis_ready-cytokine array_041326.xlsx,MV2,vehicle,male
+MV3,projects/Nicole Veh vs Aldo M vs F - Cytokine XL/analysis_ready-cytokine array_041326.xlsx,MV3,vehicle,male
+MV4,projects/Nicole Veh vs Aldo M vs F - Cytokine XL/analysis_ready-cytokine array_041326.xlsx,MV4,vehicle,male
+MA1,projects/Nicole Veh vs Aldo M vs F - Cytokine XL/analysis_ready-cytokine array_041326.xlsx,MA1,aldosterone,male
+MA2,projects/Nicole Veh vs Aldo M vs F - Cytokine XL/analysis_ready-cytokine array_041326.xlsx,MA2,aldosterone,male
+MA3,projects/Nicole Veh vs Aldo M vs F - Cytokine XL/analysis_ready-cytokine array_041326.xlsx,MA3,aldosterone,male
+MA4,projects/Nicole Veh vs Aldo M vs F - Cytokine XL/analysis_ready-cytokine array_041326.xlsx,MA4,aldosterone,male
+FV1,projects/Nicole Veh vs Aldo M vs F - Cytokine XL/analysis_ready-cytokine array_041326.xlsx,FV1,vehicle,female
+FV2,projects/Nicole Veh vs Aldo M vs F - Cytokine XL/analysis_ready-cytokine array_041326.xlsx,FV2,vehicle,female
+FV3,projects/Nicole Veh vs Aldo M vs F - Cytokine XL/analysis_ready-cytokine array_041326.xlsx,FV3,vehicle,female
+FV4,projects/Nicole Veh vs Aldo M vs F - Cytokine XL/analysis_ready-cytokine array_041326.xlsx,FV4,vehicle,female
+FA1,projects/Nicole Veh vs Aldo M vs F - Cytokine XL/analysis_ready-cytokine array_041326.xlsx,FA1,aldosterone,female
+FA2,projects/Nicole Veh vs Aldo M vs F - Cytokine XL/analysis_ready-cytokine array_041326.xlsx,FA2,aldosterone,female
+FA3,projects/Nicole Veh vs Aldo M vs F - Cytokine XL/analysis_ready-cytokine array_041326.xlsx,FA3,aldosterone,female
+FA4,projects/Nicole Veh vs Aldo M vs F - Cytokine XL/analysis_ready-cytokine array_041326.xlsx,FA4,aldosterone,female
