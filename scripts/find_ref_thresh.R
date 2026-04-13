@@ -2,7 +2,11 @@ rm(list = ls())
 source(file.path("scripts", "helpers", "runtime_setup.R"))
 load_analysis_packages(include_parallel = FALSE)
 
-source(file.path("scripts", "config", "analysis_config.R"))
+config_path <- Sys.getenv("PROTEOME_PROFILER_CONFIG", unset = file.path("scripts", "config", "analysis_config.R"))
+# Keep the config load explicit so users can see what to edit and tests can
+# point the script at a fixture-specific config file.
+source(path.expand(config_path))
+source(file.path("scripts", "helpers", "replicate_analysis.R"))
 source(file.path("scripts", "helpers", "project_paths.R"))
 source(file.path("scripts", "helpers", "array_helper_scripts.R"))
 
@@ -13,15 +17,13 @@ source(file.path("scripts", "helpers", "array_helper_scripts.R"))
 # per-user analysis tree under `threshold_diagnostics/`.
 # The configured coordinates are a manually chosen low-signal analyte panel
 # used to estimate a practical raw-signal floor for this dataset.
-example_config <- get_analysis_config("vegfri_dox_cytokine_xl")
+analysis_name <- get_selected_analysis_name(Sys.getenv("PROTEOME_PROFILER_ANALYSIS", unset = ""))
+example_config <- get_analysis_config(analysis_name)
 info_fn <- get_protocol_workbook_path(example_config)
-data_dir <- example_config$data_dir
 analysis_output_root <- get_analysis_output_root(example_config)
 output_dir <- file.path(analysis_output_root, "threshold_diagnostics")
-ref_coords_to_make_filter <- example_config$ref_coords_to_make_filter
-my_group_lvls <- example_config$group_levels
-data_dir <- resolve_project_path(data_dir, must_exist = TRUE)
 dir.create(output_dir, showWarnings = FALSE, recursive = TRUE)
+ref_coords_to_make_filter <- example_config$ref_coords_to_make_filter
 
 
 
@@ -30,9 +32,43 @@ analyte_info_df <- read_excel(info_fn) %>%
     mutate(sname_grouping = row_number()) %>%
     rename(Name = `Analyte/Control`)
 
-## Build the analyte-level dataset once, then inspect the user-selected
-## background-control coordinates to choose a raw-signal floor.
-df <- make_plot_ready_dataset(data_dir, analyte_info = analyte_info_df, preview = TRUE, my_group_lvls = my_group_lvls)
+## Build one analyte-level table for threshold diagnostics, regardless of
+## whether the active analysis is legacy one-workbook-per-group data or a
+## manifest-driven replicate-aware run.
+if (config_uses_sample_manifest(example_config)) {
+    manifest_path <- resolve_project_path(example_config$sample_manifest, must_exist = TRUE)
+    data_dir <- if (!is.null(example_config$data_dir)) {
+        resolve_project_path(example_config$data_dir, must_exist = TRUE)
+    } else {
+        NULL
+    }
+
+    manifest_tbl <- read_sample_manifest(
+        manifest_path = manifest_path,
+        subgroup_var = example_config$subgroup_var,
+        treatment_var = example_config$treatment_var
+    ) %>%
+        resolve_manifest_workbook_paths(data_dir = data_dir)
+
+    sample_level_df <- build_sample_level_dataset(
+        manifest = manifest_tbl,
+        analyte_info = analyte_info_df,
+        treatment_var = example_config$treatment_var,
+        subgroup_var = example_config$subgroup_var,
+        data_dir = data_dir
+    )
+
+    threshold_diag <- build_threshold_diagnostic_dataset(
+        sample_data = sample_level_df,
+        subgroup_var = example_config$subgroup_var
+    )
+    df <- threshold_diag$wide_df
+    my_group_lvls <- threshold_diag$group_levels
+} else {
+    data_dir <- resolve_project_path(example_config$data_dir, must_exist = TRUE)
+    my_group_lvls <- example_config$group_levels
+    df <- make_plot_ready_dataset(data_dir, analyte_info = analyte_info_df, preview = TRUE, my_group_lvls = my_group_lvls)
+}
 
 # Suggest a reviewable starting panel of low-signal analytes so the user can
 # choose `ref_coords_to_make_filter` with actual data in hand rather than by

@@ -1,0 +1,5 @@
+sample_id,workbook_path,treatment
+VEH_01,projects/Veh vs Sor Dox Lis - Cytokine XL/data/vehicle - cyto xl - rotated ccw 90.xlsx,vehicle
+SOR_01,projects/Veh vs Sor Dox Lis - Cytokine XL/data/sorafenib - cyto xl - rotated ccw 90.xlsx,sorafenib
+SOR_DOX_01,projects/Veh vs Sor Dox Lis - Cytokine XL/data/sor + dox - cyto xl - rotated ccw 90.xlsx,sor + dox
+SOR_LIS_01,projects/Veh vs Sor Dox Lis - Cytokine XL/data/sor + lis - cyto xl - rotated ccw 90.xlsx,sor + lis

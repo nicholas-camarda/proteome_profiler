@@ -4,7 +4,7 @@ This folder holds repo-local output examples that can be embedded directly in th
 
 ## Embedded Output Examples
 
-These PNGs were copied from the current VEGFRi/Dox runtime outputs so the docs show real renders rather than placeholder descriptions.
+These PNGs were copied from one real legacy exploratory run so the docs show real renders rather than placeholder descriptions. They are example outputs, not defaults for a new project.
 
 ### Threshold diagnostics
 
@@ -28,6 +28,8 @@ Source output type: `main_analysis/.../fold_change_hits/.../barplots/...png`
 
 ![Select analytes waterfall example](output-examples/select-analytes-waterfall.png)
 
-Source output type: `select_analytes/waterfall_plot_*.png`
+Legacy source output type: `select_analytes/waterfall_plot_*.png`
 
-For the broader explanation of what each output means and where it is generated, see the root [README.md](/Users/ncamarda/Projects/proteome_profiler/README.md).
+Replicate-aware shortlist source output type: `select_analytes/comparisons/<comparison_slug>/shortlist_waterfall.png`
+
+For the broader explanation of what each output means and where it is generated, see the root [README.md](../README.md).

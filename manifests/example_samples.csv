@@ -1,0 +1,9 @@
+sample_id,workbook_path,treatment,sex
+M01,data/m01.xlsx,control,male
+M02,data/m02.xlsx,control,male
+M03,data/m03.xlsx,treated,male
+M04,data/m04.xlsx,treated,male
+F01,data/f01.xlsx,control,female
+F02,data/f02.xlsx,control,female
+F03,data/f03.xlsx,treated,female
+F04,data/f04.xlsx,treated,female

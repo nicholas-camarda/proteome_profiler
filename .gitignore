@@ -2,6 +2,8 @@
 .Rproj.user/
 .history/
 .codex/
+.github/
+.pytest_cache/
 Rplots.pdf
 
 analysis_registry.yaml

@@ -18,7 +18,8 @@ required_analysis_packages <- function(include_parallel = TRUE) {
         "ggprism",
         "ggh4x",
         "ggforce",
-        "readr"
+        "readr",
+        "writexl"
     )
 
     if (include_parallel) {
@@ -26,6 +27,13 @@ required_analysis_packages <- function(include_parallel = TRUE) {
     }
 
     unique(packages)
+}
+
+#' Return the package set required by the automated tests
+#'
+#' @return Character vector of package names used only by tests/fixture helpers.
+required_test_packages <- function() {
+    c("testthat", "writexl", "openxlsx")
 }
 
 #' Load the packages required by the active analysis scripts

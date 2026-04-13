@@ -1,6 +1,9 @@
 source(file.path("scripts", "helpers", "runtime_setup.R"))
 
-required_packages <- required_analysis_packages(include_parallel = TRUE)
+required_packages <- unique(c(
+    required_analysis_packages(include_parallel = TRUE),
+    required_test_packages()
+))
 
 missing_packages <- required_packages[!vapply(required_packages, requireNamespace, quietly = TRUE, FUN.VALUE = logical(1))]
 

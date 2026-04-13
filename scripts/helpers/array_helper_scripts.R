@@ -596,9 +596,14 @@ plot_wf_graph <- function(data, add_fc = FALSE, TITLE = "Potential markers of so
     control <- unique(final_data_wf_plot$control)
 
     new_title <- str_split(TITLE, "\n", simplify = TRUE)
-    main_title <- new_title[1]
-    subtitle <- new_title[2]
-    helper_caption <- new_title[3]
+    main_title <- stringr::str_wrap(new_title[1], width = 55)
+    subtitle <- if (ncol(new_title) >= 2) stringr::str_wrap(new_title[2], width = 90) else ""
+    helper_caption <- if (ncol(new_title) >= 3) new_title[3] else ""
+    caption_text <- if (nzchar(helper_caption)) {
+        qq("N = @{num_analytes}\n@{helper_caption}")
+    } else {
+        qq("N = @{num_analytes}")
+    }
 
     if (nrow(final_data_wf_plot) > 1) {
         my_y_lim <- c(min(c(0, final_data_wf_plot$log_relative_signal, na.rm = TRUE)), max(final_data_wf_plot$log_relative_signal, na.rm = TRUE))
@@ -636,21 +641,22 @@ plot_wf_graph <- function(data, add_fc = FALSE, TITLE = "Potential markers of so
         ylim(my_y_lim) +
         xlab("") +
         ylab(TeX(str_c("$log_2(\\frac{", main_comp, "}{", control, "})$"))) +
-        labs(title = main_title, subtitle = subtitle, caption = qq("N = @{num_analytes}\n@{helper_caption}")) +
+        labs(title = main_title, subtitle = subtitle, caption = caption_text) +
         theme_prism(base_size = 16) +
         theme(
             panel.grid.major = element_line(colour = "gray", linetype = 3, linewidth = rel(0.5)),
             # panel.grid.minor = element_line(colour = "gray", linetype = 2, linewidth = rel(0.25)),
             axis.text.x = element_text(
                 angle = 90, vjust = 0.2, hjust = 0.95,
-                color = final_data_wf_plot$color, size = rel(0.95)
+                color = "black", size = rel(0.95)
             ),
             axis.title = element_text(size = rel(2)),
-            plot.title = element_text(size = rel(3)),
-            plot.subtitle = element_text(size = rel(1.8)),
+            plot.title = element_text(size = rel(2.1), lineheight = 1),
+            plot.subtitle = element_text(size = rel(1.25), lineheight = 1),
             axis.text = element_text(size = rel(1.5)),
             axis.ticks = element_line(linewidth = rel(1.5)),
-            axis.line = element_line(linewidth = rel(1.5))
+            axis.line = element_line(linewidth = rel(1.5)),
+            plot.margin = margin(15, 15, 15, 15)
             # aspect.ratio = 1
         )
 

@@ -27,6 +27,38 @@ find_repo_root <- function(start = getwd()) {
 
 repo_root <- find_repo_root()
 
+config_uses_sample_manifest <- function(example_config) {
+    !is.null(example_config$sample_manifest) &&
+        !identical(example_config$sample_manifest, "") &&
+        !is.na(example_config$sample_manifest)
+}
+
+#' Return the analysis mode requested by one config entry
+#'
+#' The repository now separates how inputs are declared from how they are
+#' analyzed. Both exploratory and inferential analyses may be manifest-driven;
+#' `mode` tells the entry scripts whether to run exploratory plots or
+#' replicate-aware inference.
+#'
+#' @param example_config Named list describing one analysis run.
+#'
+#' @return Character scalar, either `"legacy"` or `"replicate"`.
+get_analysis_mode <- function(example_config) {
+    explicit_mode <- example_config[["mode"]]
+    if (!is.null(explicit_mode) && !identical(explicit_mode, "") && !is.na(explicit_mode)) {
+        if (!explicit_mode %in% c("legacy", "replicate")) {
+            stop("Analysis config `mode` must be either 'legacy' or 'replicate'.")
+        }
+        return(explicit_mode)
+    }
+
+    if (config_uses_sample_manifest(example_config)) {
+        return("replicate")
+    }
+
+    "legacy"
+}
+
 if (!exists("proteome_profiler_config")) {
     stop(paste(
         "Expected `proteome_profiler_config` to already be defined.",
@@ -91,16 +123,189 @@ resolve_project_path <- function(path, must_exist = TRUE) {
 #' The returned object is metadata only: where the raw data lives, who owns the
 #' output subtree, which comparisons to run, and which thresholds to use.
 #'
-#' @param example_name Name of the entry in
-#'   `proteome_profiler_config$examples`.
+#' @param analysis_name Name of the entry in
+#'   `proteome_profiler_config$analyses`.
 #'
 #' @return Named list describing one analysis run.
-get_analysis_config <- function(example_name = "vegfri_dox_cytokine_xl") {
-    config <- proteome_profiler_config$examples[[example_name]]
+get_analysis_entries <- function() {
+    analyses <- proteome_profiler_config$analyses
+    if (!is.null(analyses)) {
+        return(analyses)
+    }
+
+    legacy_examples <- proteome_profiler_config$examples
+    if (!is.null(legacy_examples)) {
+        return(legacy_examples)
+    }
+
+    stop("Expected `proteome_profiler_config$analyses` to be defined.")
+}
+
+#' Normalize one user-facing analysis config into the internal flat shape
+#'
+#' Users edit `scripts/config/analysis_config.R`, which now supports a more
+#' compact grouped layout (`protocol`, `input`, `thresholds`, `shortlist`,
+#' `stats`). The rest of the pipeline still expects flat field names, so this
+#' helper expands the grouped form into the canonical internal structure.
+#'
+#' @param analysis_config Named list describing one analysis.
+#'
+#' @return Named list in the flat internal format expected by the scripts.
+normalize_analysis_config <- function(analysis_config) {
+    config <- analysis_config
+
+    slug_value <- config[["slug"]]
+    if (!is.null(slug_value) && is.null(config[["analysis_slug"]])) {
+        config$analysis_slug <- slug_value
+    }
+
+    protocol <- config[["protocol"]]
+    if (!is.null(protocol)) {
+        if (!is.null(protocol[["preset"]]) && is.null(config[["protocol_preset"]])) {
+            config$protocol_preset <- protocol[["preset"]]
+        }
+        if (!is.null(protocol[["workbook"]]) && is.null(config[["info_fn"]])) {
+            config$info_fn <- protocol[["workbook"]]
+        }
+        if (!is.null(protocol[["pdf"]]) && is.null(config[["protocol_pdf"]])) {
+            config$protocol_pdf <- protocol[["pdf"]]
+        }
+        if (!is.null(protocol[["pages"]]) && is.null(config[["protocol_pages"]])) {
+            config$protocol_pages <- protocol[["pages"]]
+        }
+    }
+
+    input <- config[["input"]]
+    if (!is.null(input)) {
+        if (!is.null(input[["data_dir"]]) && is.null(config[["data_dir"]])) {
+            config$data_dir <- input[["data_dir"]]
+        }
+        if (!is.null(input[["groups"]]) && is.null(config[["group_levels"]])) {
+            config$group_levels <- input[["groups"]]
+        }
+        if (!is.null(input[["manifest"]]) && is.null(config[["sample_manifest"]])) {
+            config$sample_manifest <- input[["manifest"]]
+        }
+        if (!is.null(input[["subgroup"]]) && is.null(config[["subgroup_var"]])) {
+            config$subgroup_var <- input[["subgroup"]]
+        }
+        if (!is.null(input[["treatment"]]) && is.null(config[["treatment_var"]])) {
+            config$treatment_var <- input[["treatment"]]
+        }
+    }
+
+    thresholds <- config[["thresholds"]]
+    if (!is.null(thresholds)) {
+        if (!is.null(thresholds[["ref_coords"]]) && is.null(config[["ref_coords_to_make_filter"]])) {
+            config$ref_coords_to_make_filter <- thresholds[["ref_coords"]]
+        }
+        if (!is.null(thresholds[["ref_signal"]]) && is.null(config[["ref_thresh_to_filter"]])) {
+            config$ref_thresh_to_filter <- thresholds[["ref_signal"]]
+        }
+        if (!is.null(thresholds[["fold_change"]]) && is.null(config[["main_threshold"]])) {
+            config$main_threshold <- thresholds[["fold_change"]]
+        }
+        if (!is.null(thresholds[["groups_per_page"]]) && is.null(config[["groups_per_page"]])) {
+            config$groups_per_page <- thresholds[["groups_per_page"]]
+        }
+    }
+
+    shortlist <- config[["shortlist"]]
+    if (!is.null(shortlist)) {
+        if (!is.null(shortlist[["control"]]) && is.null(config[["selection_control"]])) {
+            config$selection_control <- shortlist[["control"]]
+        }
+        if (!is.null(shortlist[["treatment"]]) && is.null(config[["selection_group"]])) {
+            config$selection_group <- shortlist[["treatment"]]
+        }
+        if (!is.null(shortlist[["fold_change"]]) && is.null(config[["selection_threshold"]])) {
+            config$selection_threshold <- shortlist[["fold_change"]]
+        }
+        shortlist_comparisons <- shortlist[["comparisons"]]
+        if (is.null(shortlist_comparisons)) {
+            shortlist_comparisons <- shortlist[["comparison"]]
+        }
+        if (!is.null(shortlist_comparisons) && is.null(config[["selection_comparison_slugs"]])) {
+            config$selection_comparison_slugs <- unname(as.character(shortlist_comparisons))
+        }
+        if (!is.null(config[["selection_comparison_slugs"]]) &&
+            length(config[["selection_comparison_slugs"]]) == 1 &&
+            is.null(config[["selection_comparison_slug"]])) {
+            config$selection_comparison_slug <- config[["selection_comparison_slugs"]][[1]]
+        }
+        if (!is.null(shortlist[["top_n"]]) && is.null(config[["selection_top_n"]])) {
+            config$selection_top_n <- shortlist[["top_n"]]
+        }
+    }
+
+    stats <- config[["stats"]]
+    if (!is.null(stats)) {
+        if (!is.null(stats[["min_reps_per_arm"]]) && is.null(config[["min_reps_per_arm"]])) {
+            config$min_reps_per_arm <- stats[["min_reps_per_arm"]]
+        }
+        if (!is.null(stats[["p_adjust_method"]]) && is.null(config[["p_adjust_method"]])) {
+            config$p_adjust_method <- stats[["p_adjust_method"]]
+        }
+        if (!is.null(stats[["alpha"]]) && is.null(config[["alpha"]])) {
+            config$alpha <- stats[["alpha"]]
+        }
+    }
+
+    config
+}
+
+#' Return one named analysis configuration
+#'
+#' The returned object is metadata only: where the raw data lives, who owns the
+#' output subtree, which comparisons to run, and which thresholds to use.
+#'
+#' @param analysis_name Name of the entry in
+#'   `proteome_profiler_config$analyses`.
+#'
+#' @return Named list describing one analysis run.
+get_analysis_config <- function(analysis_name) {
+    config <- get_analysis_entries()[[analysis_name]]
     if (is.null(config)) {
-        stop(sprintf("Unknown example config: %s", example_name))
+        stop(sprintf("Unknown analysis config: %s", analysis_name))
+    }
+    config <- normalize_analysis_config(config)
+    if (config_uses_sample_manifest(config) && is.null(config$p_adjust_method)) {
+        config$p_adjust_method <- "BH"
     }
     config
+}
+
+#' Resolve which analysis entry should be used for the current run
+#'
+#' The active analysis should come from the explicit
+#' `PROTEOME_PROFILER_ANALYSIS` environment variable when set. Otherwise, the
+#' user-editable config may declare `default_analysis`. This keeps example names
+#' out of the script bodies while still allowing one local default per machine.
+#'
+#' @param requested_name Optional explicit analysis name, typically from
+#'   `Sys.getenv("PROTEOME_PROFILER_ANALYSIS")`.
+#'
+#' @return Character scalar naming the selected config entry.
+get_selected_analysis_name <- function(requested_name = NULL) {
+    if (!is.null(requested_name) && !identical(requested_name, "") && !is.na(requested_name)) {
+        return(requested_name)
+    }
+
+    default_name <- proteome_profiler_config$default_analysis
+    if (!is.null(default_name) && !identical(default_name, "") && !is.na(default_name)) {
+        return(default_name)
+    }
+
+    analysis_names <- names(get_analysis_entries())
+    if (length(analysis_names) == 1) {
+        return(analysis_names[[1]])
+    }
+
+    stop(paste(
+        "No analysis selected.",
+        "Set PROTEOME_PROFILER_ANALYSIS or define proteome_profiler_config$default_analysis",
+        "in scripts/config/analysis_config.R."
+    ))
 }
 
 #' Validate that an analysis configuration contains the required fields
@@ -112,7 +317,23 @@ get_analysis_config <- function(example_name = "vegfri_dox_cytokine_xl") {
 #'
 #' @return `NULL`, called for side effects.
 validate_analysis_config <- function(example_config) {
-    required_fields <- c("user", "analysis_slug", "data_dir", "info_fn", "group_levels")
+    analysis_mode <- get_analysis_mode(example_config)
+
+    required_fields <- c("user", "analysis_slug", "info_fn", "protocol_preset", "comparisons")
+    if (config_uses_sample_manifest(example_config)) {
+        required_fields <- c(required_fields, "sample_manifest", "treatment_var")
+    } else {
+        required_fields <- c(required_fields, "data_dir", "group_levels")
+    }
+
+    if (analysis_mode == "replicate") {
+        required_fields <- c(
+            required_fields,
+            "subgroup_var",
+            "alpha"
+        )
+    }
+
     missing_fields <- required_fields[vapply(required_fields, function(field) {
         is.null(example_config[[field]]) || identical(example_config[[field]], "")
     }, logical(1))]
@@ -121,6 +342,15 @@ validate_analysis_config <- function(example_config) {
         stop(sprintf(
             "Analysis config is missing required fields: %s",
             paste(missing_fields, collapse = ", ")
+        ))
+    }
+
+    if (analysis_mode == "replicate" &&
+        !example_config$p_adjust_method %in% p.adjust.methods) {
+        stop(sprintf(
+            "Unsupported p-value adjustment method '%s'. Supported methods: %s",
+            example_config$p_adjust_method,
+            paste(p.adjust.methods, collapse = ", ")
         ))
     }
 }

@@ -1,4 +1,5 @@
 import argparse
+import importlib
 from pathlib import Path
 
 import pandas as pd
@@ -63,6 +64,27 @@ def resolve_input_path(input_arg: str | None, preset_input_name: str) -> Path:
     )
 
 
+def read_protocol_tables(input_path: Path, pages: list[int]) -> list[pd.DataFrame]:
+    """Read protocol tables using whichever tabula API variant is installed."""
+    if hasattr(tb, 'read_pdf'):
+        return tb.read_pdf(str(input_path), pages=pages, multiple_tables=True)
+
+    io_module = getattr(tb, 'io', None)
+    if io_module is None:
+        try:
+            io_module = importlib.import_module('tabula.io')
+        except ImportError:
+            io_module = None
+
+    if io_module is not None and hasattr(io_module, 'read_pdf'):
+        return io_module.read_pdf(str(input_path), pages=pages, multiple_tables=True)
+
+    raise AttributeError(
+        "Installed tabula module does not expose read_pdf. "
+        "Expected tabula-py with tabula.read_pdf or tabula.io.read_pdf."
+    )
+
+
 def main():
     args = parse_args()
     preset = PRESETS[args.preset]
@@ -80,7 +102,7 @@ def main():
 
     output_path.parent.mkdir(parents=True, exist_ok=True)
 
-    tables = tb.read_pdf(str(input_path), pages=pages, multiple_tables=True)
+    tables = read_protocol_tables(input_path, pages)
     if not tables:
         raise RuntimeError(f'No tables were extracted from {input_path}')
 
