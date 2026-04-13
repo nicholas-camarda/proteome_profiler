@@ -1,28 +1,26 @@
 rm(list = ls())
-library(tidyverse)
-library(readxl)
-library(GetoptLong)
-library(RColorBrewer)
-library(latex2exp)
-library(patchwork)
-library(ggprism)
-library(ggh4x)
+source(file.path("scripts", "helpers", "runtime_setup.R"))
+load_analysis_packages(include_parallel = FALSE)
 
+source(file.path("scripts", "config", "analysis_config.R"))
 source(file.path("scripts", "helpers", "project_paths.R"))
 source(file.path("scripts", "helpers", "array_helper_scripts.R"))
 
 #' @Number1 protocol data
-#' @note run scripts/setup/extract_analyte_table.py first if the protocol workbook does not exist yet.
+#' @note run scripts/setup/extract_analyte_table.py before this script if the protocol workbook has not been created yet.
 
+# Load the shared analysis metadata, then write this script's outputs into the
+# per-user analysis tree under `threshold_diagnostics/`.
+# The configured coordinates are a manually chosen low-signal analyte panel
+# used to estimate a practical raw-signal floor for this dataset.
 example_config <- get_analysis_config("vegfri_dox_cytokine_xl")
-info_fn <- example_config$info_fn
+info_fn <- get_protocol_workbook_path(example_config)
 data_dir <- example_config$data_dir
-output_dir <- example_config$output_dir
+analysis_output_root <- get_analysis_output_root(example_config)
+output_dir <- file.path(analysis_output_root, "threshold_diagnostics")
 ref_coords_to_make_filter <- example_config$ref_coords_to_make_filter
 my_group_lvls <- example_config$group_levels
-info_fn <- resolve_project_path(info_fn, must_exist = TRUE)
 data_dir <- resolve_project_path(data_dir, must_exist = TRUE)
-output_dir <- resolve_project_path(output_dir, must_exist = FALSE)
 dir.create(output_dir, showWarnings = FALSE, recursive = TRUE)
 
 
@@ -32,8 +30,17 @@ analyte_info_df <- read_excel(info_fn) %>%
     mutate(sname_grouping = row_number()) %>%
     rename(Name = `Analyte/Control`)
 
-## Run it
+## Build the analyte-level dataset once, then inspect the user-selected
+## background-control coordinates to choose a raw-signal floor.
 df <- make_plot_ready_dataset(data_dir, analyte_info = analyte_info_df, preview = TRUE, my_group_lvls = my_group_lvls)
+
+# Suggest a reviewable starting panel of low-signal analytes so the user can
+# choose `ref_coords_to_make_filter` with actual data in hand rather than by
+# trial and error alone.
+candidate_low_signal_df <- suggest_low_signal_panel(df)
+write_tsv(candidate_low_signal_df, file.path(output_dir, "candidate_low_signal_analytes.tsv"))
+message("Suggested low-signal analytes written to:")
+message(file.path(output_dir, "candidate_low_signal_analytes.tsv"))
 
 long_df <- df %>%
     pivot_longer(all_of(my_group_lvls), names_to = "group", values_to = "signal")
@@ -44,16 +51,13 @@ long_df <- df %>%
 #     facet_wrap(~group)
 
 
-control_point_color <- "#ffffff"
-tx1_point_color <- "#737171"
-tx2_point_color <- "#9BB3D3"
-tx3_point_color <- "#B53530"
-my_group_lvls <- factor(my_group_lvls)
-my_colors <- c(control_point_color, tx1_point_color, tx2_point_color, tx3_point_color)[seq_len(nlevels(my_group_lvls))] %>%
-    set_names(my_group_lvls)
+style_config <- build_group_style(my_group_lvls, scheme = "threshold")
+my_group_lvls <- style_config$group_levels
+my_colors <- style_config$fill
 
 
-## Identify the threshold to filter out analytes
+## This writes the diagnostic figure used to pick a reference threshold before
+## running the full `main.R` workflow.
 filt_lst <- find_filter_thresh(wide_df = df, ref_coords = ref_coords_to_make_filter, my_colors = my_colors)
 # filt_lst <- find_filter_thresh(wide_df = df, filter_threshold = 100, my_colors = my_colors)
 

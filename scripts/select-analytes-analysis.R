@@ -1,24 +1,20 @@
 rm(list = ls())
-library(tidyverse)
-library(readxl)
-library(GetoptLong)
-library(RColorBrewer)
-library(latex2exp)
-library(patchwork)
-library(ggprism)
-library(ggh4x)
+source(file.path("scripts", "helpers", "runtime_setup.R"))
+load_analysis_packages(include_parallel = FALSE)
 
+source(file.path("scripts", "config", "analysis_config.R"))
 source(file.path("scripts", "helpers", "project_paths.R"))
 source(file.path("scripts", "helpers", "array_helper_scripts.R"))
 
 #' @Number1
+#' This script writes the sorafenib shortlist views under the per-user analysis
+#' tree in `select_analytes/`.
 example_config <- get_analysis_config("vegfri_dox_cytokine_xl")
-info_fn <- example_config$info_fn
+info_fn <- get_protocol_workbook_path(example_config)
 data_dir <- example_config$data_dir
-output_dir <- example_config$output_dir
-info_fn <- resolve_project_path(info_fn, must_exist = TRUE)
+analysis_output_root <- get_analysis_output_root(example_config)
+output_dir <- file.path(analysis_output_root, "select_analytes")
 data_dir <- resolve_project_path(data_dir, must_exist = TRUE)
-output_dir <- resolve_project_path(output_dir, must_exist = FALSE)
 dir.create(output_dir, showWarnings = FALSE, recursive = TRUE)
 
 my_group_lvls <- example_config$group_levels
@@ -44,17 +40,10 @@ names_to_check <- c(
 )
 # names_to_check <- c("Angiopoietin-2", "Angiopoietin-like 3", "VCAM-1/CD106", "P-Selectin/CD62P", "Pentraxin 2/SAP", "BAFF/BLyS/TNFSF13B", "C-Reactive Protein/CRP", "CCL11/Eotaxin")
 
-vehicle_point_color <- "#ffffff"
-sorafenib_point_color <- "#737171"
-sor_dox_point_color <- "#CCD8E8"
-sor_dox_outline_color <- "#22456F"
-sor_lis_point_color <- "#E5938A" #
-sor_lis_outline_color <- "#B53530"
-my_group_lvls <- factor(my_group_lvls, levels = my_group_lvls)
-my_colors <- c(vehicle_point_color, sorafenib_point_color, sor_dox_point_color, sor_lis_point_color)[seq_len(nlevels(my_group_lvls))] %>%
-    set_names(my_group_lvls)
-my_outline_colors <- c("black", "black", sor_dox_outline_color, sor_lis_outline_color)[seq_len(nlevels(my_group_lvls))] %>%
-    set_names(my_group_lvls)
+style_config <- build_group_style(my_group_lvls, scheme = "main")
+my_group_lvls <- style_config$group_levels
+my_colors <- style_config$fill
+my_outline_colors <- style_config$outline
 
 
 
@@ -74,6 +63,8 @@ df <- make_plot_ready_dataset(
 my_ref_thresh <- example_config$ref_thresh_to_filter[[1]]
 sor_thresh <- example_config$selection_threshold
 
+# Reuse the pairwise comparison helper, but narrow it to the specific
+# vehicle-vs-sorafenib contrast used for the shortlist view.
 special_lst_obj <- make_wf_data(df,
     my_main_threshold = sor_thresh, ref_thresh_to_filter_ = my_ref_thresh,
     comparisons = setNames(list(c(example_config$selection_group)), example_config$selection_control)
@@ -101,10 +92,7 @@ gg_wf_plot <- plot_wf_graph(
 gg_wf_plot
 
 
-output_subdir <- file.path(
-    output_dir,
-    "select"
-)
+output_subdir <- output_dir
 dir.create(output_subdir, showWarnings = FALSE, recursive = TRUE)
 output_path <- file.path(
     output_subdir,
@@ -127,6 +115,8 @@ select_faceted_bargraphs_lst <- make_bar_charts(
     make_facet_plot = FALSE # returns a list of single bar plots if FALSE
 )
 filtered_names <- str_remove_all(names(select_faceted_bargraphs_lst), pattern = " \\([A-Z]*[0-9]+,[0-9]+\\)$")
+# The plot titles still include coordinate suffixes from the protocol table.
+# Strip those off so exported filenames are readable for collaborators.
 dir.create(file.path(output_subdir, "select_bargraphs"), showWarnings = FALSE, recursive = TRUE)
 message("\n")
 for (i in seq_along(filtered_names)) {

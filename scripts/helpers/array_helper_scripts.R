@@ -1,8 +1,20 @@
-#' @note takes as import the data directory of the LICOR data and magically makes the dataset
-#' @param data_dir the directory path containing the LICRO excel spread sheet data
-#' @param analyte_info df ripped from the appendix of the protocol, containing coordinate and analyet name info
-#' @param preview print what the df will look like
-#' @param my_group_lvls character vector of the levels for the treatment groups, in order
+#' Build the analyte-level dataset from LI-COR workbook exports
+#'
+#' Each input workbook is assumed to represent one biological sample or one
+#' already-collapsed analysis group. Within a workbook, the duplicate membrane
+#' spots for each analyte are averaged into one signal value. This function does
+#' not model biological replicates across multiple workbooks that share the same
+#' group label.
+#'
+#' @param data_dir Directory containing the LI-COR Excel exports.
+#' @param analyte_info Data frame extracted from the protocol appendix, mapping
+#'   array positions to analyte names.
+#' @param preview Logical. When `TRUE`, print the first part of the assembled
+#'   long-format dataset before widening.
+#' @param my_group_lvls Character vector giving the treatment groups, in order.
+#'
+#' @return Wide data frame with one row per analyte and one signal column per
+#'   group.
 make_plot_ready_dataset <- function(data_dir, analyte_info, preview = FALSE, my_group_lvls = NA) {
     group_levels <- as.character(my_group_lvls)
 
@@ -40,6 +52,21 @@ make_plot_ready_dataset <- function(data_dir, analyte_info, preview = FALSE, my_
 
     if (nrow(df_temp) == 0) {
         stop(qq("No .xlsx files were found in @{data_dir}."))
+    }
+
+    duplicate_groups <- df_temp %>%
+        count(group_fn, name = "n_files") %>%
+        filter(n_files > 1)
+
+    if (nrow(duplicate_groups) > 0) {
+        stop(qq(
+            paste(
+                "Found multiple LI-COR workbooks for the same analysis group.",
+                "This pipeline currently supports one workbook per group and only averages technical duplicate spots within a membrane.",
+                "Biological replicates must be modeled explicitly before this script can be used.",
+                "Duplicate groups: @{str_c(duplicate_groups$group_fn, collapse = ', ')}"
+            )
+        ))
     }
 
     missing_groups <- df_temp %>%
@@ -141,9 +168,17 @@ make_plot_ready_dataset <- function(data_dir, analyte_info, preview = FALSE, my_
 }
 
 # manually identified threshold
-#' @note takes wide df and calculates the mean intensity of a set of coordinates
+#' Derive a heuristic raw-signal cutoff from selected analyte coordinates
+#'
+#' This helper is intentionally heuristic. When `ref_coords` are supplied, they
+#' are treated as a manually chosen low-signal analyte panel whose average
+#' signal marks the rough boundary between usable and unusable analytes for this
+#' dataset. They are not assumed to be the array's true control spots unless
+#' the caller explicitly chooses those coordinates.
 #' @param wide_df df produced by make_plot_ready_dataset() function
-#' @param ref_coords reference coordinates to look at, in the form of a vector of duplicates e.g. c("A5,6", "A7,8")
+#' @param ref_coords coordinates to inspect, in the form of a vector of
+#'   duplicates e.g. c("A5,6", "A7,8"). In the current VEGFRi/Dox example these
+#'   are manually selected low-signal analytes, not true protocol controls.
 #' @param filter_threshold signal threshold to filter on,  usually picked by looking at histograms of each of the datasets.
 #' this will *keep* analytes with signal strictly greater than this number
 #' @param my_colors named vector with groups as names and values as colors for those groups to be displayed
@@ -167,6 +202,8 @@ find_filter_thresh <- function(wide_df, filter_threshold = NULL, ref_coords = NU
 
     if (!is.null(ref_coords) && is.null(filter_threshold)) {
         message("Filtering using ref_coords...")
+        # These coordinates define the low-signal reference panel used to set a
+        # candidate raw-signal floor for the rest of the analysis.
         ref_coords_long_df <- long_df %>%
             filter(Coordinate %in% ref_coords)
         subtitle <- qq("Region coords: @{str_c(ref_coords, collapse = '; ')}")
@@ -258,6 +295,64 @@ find_filter_thresh <- function(wide_df, filter_threshold = NULL, ref_coords = NU
     plt_lst <- boxp / (histop + histop2)
 
     return(list(ref_thresh_to_filter_df, plt_lst))
+}
+
+#' Suggest candidate low-signal analytes for threshold selection
+#'
+#' This helper provides a starting point for `ref_coords_to_make_filter`. It
+#' ranks analytes that are consistently low across the currently configured
+#' groups so the user can review plausible candidates instead of choosing every
+#' coordinate by hand from scratch. The result is still advisory: users should
+#' inspect their own data and confirm that the suggested analytes really sit near
+#' the boundary between usable and unusable signal for their assay.
+#'
+#' @param wide_df Data frame produced by `make_plot_ready_dataset()`.
+#' @param candidate_n Integer number of candidates to return.
+#' @param exclude_name_patterns Character vector of regex patterns used to drop
+#'   rows such as true reference spots or negative controls from the suggestion
+#'   list.
+#'
+#' @return Tibble of suggested low-signal analytes with ranking metadata.
+suggest_low_signal_panel <- function(wide_df, candidate_n = 12, exclude_name_patterns = c("^Reference Spots$", "^Negative Control$")) {
+    group_cols <- setdiff(colnames(wide_df), c("Name", "Sname", "Coordinate"))
+
+    score_df <- wide_df %>%
+        rowwise() %>%
+        mutate(
+            mean_signal = mean(c_across(all_of(group_cols)), na.rm = TRUE),
+            max_signal = max(c_across(all_of(group_cols)), na.rm = TRUE),
+            min_signal = min(c_across(all_of(group_cols)), na.rm = TRUE),
+            sd_signal = sd(c_across(all_of(group_cols)), na.rm = TRUE),
+            cv_signal = if_else(mean_signal > 0, sd_signal / mean_signal, Inf)
+        ) %>%
+        ungroup()
+
+    if (length(exclude_name_patterns) > 0) {
+        exclude_pattern <- str_c(exclude_name_patterns, collapse = "|")
+        score_df <- score_df %>%
+            filter(!str_detect(Name, exclude_pattern))
+    }
+
+    score_df %>%
+        mutate(
+            mean_rank = min_rank(mean_signal),
+            max_rank = min_rank(max_signal),
+            cv_rank = min_rank(cv_signal),
+            suggestion_score = mean_rank + max_rank + cv_rank
+        ) %>%
+        arrange(suggestion_score, mean_signal, max_signal, cv_signal, Name, Coordinate) %>%
+        transmute(
+            suggested_rank = row_number(),
+            Name,
+            Coordinate,
+            mean_signal = round(mean_signal, 3),
+            max_signal = round(max_signal, 3),
+            min_signal = round(min_signal, 3),
+            sd_signal = round(sd_signal, 3),
+            cv_signal = round(cv_signal, 3),
+            suggestion_score
+        ) %>%
+        slice_head(n = candidate_n)
 }
 
 #' @note make the bar plots
@@ -790,7 +885,8 @@ is_perfect_square <- function(n) {
 #' @param df Data frame containing the raw data for analysis.
 #' @param ref_thresh_to_filter Numeric, reference threshold for filtering the data.
 #' @param main_threshold Numeric, main fold-change threshold for significance.
-#' @param output_dir_full_path String, full path to the directory where outputs will be saved.
+#' @param output_dir_full_path String, full path to the main-analysis output
+#'   directory for one user-owned analysis tree.
 #' @param groups_per_page Integer, number of groups per page for faceted plots. Default is 25.
 #' @param comparisons List, a named list specifying the groups to compare. Default compares "Ctrl Preg" with "sFlt1 Preg" and "Ctrl PP".
 #'
@@ -806,7 +902,11 @@ is_perfect_square <- function(n) {
 #' @seealso \code{\link{make_wf_data}}, \code{\link{plot_wf_graph}}, \code{\link{make_bar_charts}}, \code{\link{save_list_bar_plots}}
 #'
 make_graphs <- function(df, ref_thresh_to_filter = NA, main_threshold = NA, output_dir_full_path = NA, groups_per_page = 25, comparisons = list("Ctrl Preg" = c("sFlt1 Preg", "Ctrl PP"))) {
-    # make subdir
+    # `output_dir_full_path` should be the script-specific output directory for
+    # the main analysis. This function then creates one subfolder per
+    # reference-threshold / fold-change-threshold combination.
+    ref_threshold_dir <- file.path(output_dir_full_path, qq("ref_threshold_@{ref_thresh_to_filter}"))
+    threshold_hits_dir <- file.path(ref_threshold_dir, "fold_change_hits", qq("threshold_@{main_threshold}"))
 
     # make wf data
     lst_obj <- make_wf_data(
@@ -837,7 +937,7 @@ make_graphs <- function(df, ref_thresh_to_filter = NA, main_threshold = NA, outp
                 message("Sub df was empty, skipping...")
                 return(list(tibble(), tibble()) %>% set_names("all", "significant"))
             }
-            sub_path <- file.path(output_dir_full_path, qq("ref_thresh_@{ref_thresh_to_filter}"), "All Comparsions", top_name)
+            sub_path <- file.path(ref_threshold_dir, "all_comparisons", "waterfalls", top_name)
             dir.create(sub_path, showWarnings = FALSE, recursive = TRUE)
 
             # all data
@@ -862,7 +962,7 @@ make_graphs <- function(df, ref_thresh_to_filter = NA, main_threshold = NA, outp
             write_tsv(sub_wf_df, file.path(sub_path, qq("@{top_name}--@{bot_name}-main_waterfall-all.tsv")))
 
             # filtered wf
-            sig_sub_path <- file.path(output_dir_full_path, qq("ref_thresh_@{ref_thresh_to_filter}"), "Signficant", "Waterfalls", qq("thresh_@{main_threshold}"))
+            sig_sub_path <- file.path(threshold_hits_dir, "waterfalls", top_name)
             dir.create(sig_sub_path, showWarnings = FALSE, recursive = TRUE)
 
             filtered_sub_wf_df <- sub_wf_df %>% filter(significant)
@@ -919,7 +1019,7 @@ make_graphs <- function(df, ref_thresh_to_filter = NA, main_threshold = NA, outp
             return(list(tibble(), tibble()) %>% set_names("all", "significant"))
         }
 
-        main_path <- file.path(output_dir_full_path, qq("ref_thresh_@{ref_thresh_to_filter}"), "Signficant", "Bargraphs", qq("thresh_@{main_threshold}"), top_name, "Combined")
+        main_path <- file.path(threshold_hits_dir, "barplots", top_name, "combined")
         dir.create(main_path, showWarnings = FALSE, recursive = TRUE)
         # message("Plotting significant analytes in multi-page faceted plot...")
         barplot_main_plot <- make_bar_charts(
@@ -955,7 +1055,7 @@ make_graphs <- function(df, ref_thresh_to_filter = NA, main_threshold = NA, outp
             }
 
             # # all --> this is probably not what you want
-            # sub_path <- file.path(output_dir_full_path, qq("ref_thresh_@{ref_thresh_to_filter}"), "All Comparsions", top_name, "Bargraphs")
+            # sub_path <- file.path(ref_threshold_dir, "all_comparisons", "barplots", top_name)
 
             # dir.create(sub_path, showWarnings = FALSE, recursive = TRUE)
 
@@ -987,7 +1087,7 @@ make_graphs <- function(df, ref_thresh_to_filter = NA, main_threshold = NA, outp
             }
 
 
-            main_path <- file.path(output_dir_full_path, qq("ref_thresh_@{ref_thresh_to_filter}"), "Signficant", "Bargraphs", qq("thresh_@{main_threshold}"), top_name, bot_name, "1. All Together")
+            main_path <- file.path(threshold_hits_dir, "barplots", top_name, bot_name, "combined")
             dir.create(main_path, showWarnings = FALSE, recursive = TRUE)
             # message("Plotting significant analytes in multi-page faceted plot...")
             barplot_main_plot <- make_bar_charts(
@@ -1010,7 +1110,7 @@ make_graphs <- function(df, ref_thresh_to_filter = NA, main_threshold = NA, outp
 
 
             # get path
-            sub_sig_path <- file.path(output_dir_full_path, qq("ref_thresh_@{ref_thresh_to_filter}"), "Signficant", "Bargraphs", qq("thresh_@{main_threshold}"), top_name, bot_name)
+            sub_sig_path <- file.path(threshold_hits_dir, "barplots", top_name, bot_name, "individual")
             dir.create(sub_sig_path, showWarnings = FALSE, recursive = TRUE)
 
             # message("Plotting all significant plots in individual pngs...")
