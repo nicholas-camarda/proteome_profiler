@@ -1,4 +1,4 @@
-# proteome_profiler
+# Proteome Profiler Array Analysis
 
 Exploratory analysis scripts for membrane-based proteome profiler arrays.
 
@@ -6,7 +6,7 @@ The active workflow reads LI-COR spot-intensity exports, averages duplicate memb
 
 ## Current supported example
 
-The shared config lives in [scripts/project_paths.R](/Users/ncamarda/Projects/proteome_profiler/scripts/project_paths.R). Edit that file once for your machine and project layout.
+The shared config lives in [scripts/helpers/project_paths.R](/Users/ncamarda/Projects/proteome_profiler/scripts/helpers/project_paths.R). Edit that file once for your machine and project layout.
 
 The VEGFRi/Dox entry in that file is an example configuration, not a required directory structure.
 
@@ -42,12 +42,39 @@ What each script does:
 
 - [scripts/install_packages.R](/Users/ncamarda/Projects/proteome_profiler/scripts/install_packages.R): installs required CRAN packages.
 - [scripts/find_ref_thresh.R](/Users/ncamarda/Projects/proteome_profiler/scripts/find_ref_thresh.R): helps inspect low-signal regions for the VEGFRi/Dox cytokine example.
-- [scripts/main.R](/Users/ncamarda/Projects/proteome_profiler/scripts/main.R): runs the main pipeline using the example config in `scripts/project_paths.R`.
+- [scripts/main.R](/Users/ncamarda/Projects/proteome_profiler/scripts/main.R): runs the main pipeline using the example config in `scripts/helpers/project_paths.R`.
 - [scripts/select-analytes-analysis.R](/Users/ncamarda/Projects/proteome_profiler/scripts/select-analytes-analysis.R): produces a sorafenib-focused shortlist view for the same dataset.
+
+## Script Layout
+
+- `scripts/main.R`, `scripts/find_ref_thresh.R`, `scripts/select-analytes-analysis.R`, `scripts/install_packages.R`: active entrypoints.
+- `scripts/helpers/`: shared config and R helper code.
+- `scripts/setup/extract_analyte_table.py`: setup utility for turning protocol PDFs into analyte workbooks.
+- `scripts/legacy/`: older project-specific and superseded scripts kept for reference.
+
+## Protocol Extraction
+
+The Python extractor is now a setup utility instead of a hard-coded one-off script.
+
+Examples:
+
+```bash
+python3 scripts/setup/extract_analyte_table.py --preset cytokine_xl
+python3 scripts/setup/extract_analyte_table.py --preset angiogenesis
+```
+
+You can also pass explicit paths:
+
+```bash
+python3 scripts/setup/extract_analyte_table.py \
+  --input "protocols/cytoXL array kit - protocol.pdf" \
+  --output "output/cytoXL array kit - protocol.xlsx" \
+  --pages 17,18,19
+```
 
 ## Path Setup
 
-Edit [scripts/project_paths.R](/Users/ncamarda/Projects/proteome_profiler/scripts/project_paths.R) and set:
+Edit [scripts/helpers/project_paths.R](/Users/ncamarda/Projects/proteome_profiler/scripts/helpers/project_paths.R) and set:
 
 - `runtime_root`
 - `cloud_parent`

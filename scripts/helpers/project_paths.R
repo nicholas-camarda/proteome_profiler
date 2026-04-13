@@ -2,7 +2,7 @@ find_repo_root <- function(start = getwd()) {
     current <- normalizePath(start, winslash = "/", mustWork = TRUE)
 
     repeat {
-        if (file.exists(file.path(current, "scripts", "project_paths.R"))) {
+        if (file.exists(file.path(current, "scripts", "helpers", "project_paths.R"))) {
             return(current)
         }
 
@@ -26,6 +26,8 @@ proteome_profiler_config <- list(
     examples = list(
         vegfri_dox_cytokine_xl = list(
             info_fn = "output/cytoXL array kit - protocol.xlsx",
+            protocol_pdf = "protocols/cytoXL array kit - protocol.pdf",
+            protocol_pages = c(17, 18, 19),
             data_dir = "projects/Veh vs Sor Dox Lis - Cytokine XL/data",
             output_dir = "output/plots/nick/cytokine_xl_array",
             group_levels = c("vehicle", "sorafenib", "sor + dox", "sor + lis"),

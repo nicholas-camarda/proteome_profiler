@@ -8,8 +8,8 @@ library(patchwork)
 library(ggprism)
 library(ggh4x)
 
-source(file.path("scripts", "project_paths.R"))
-source(file.path("scripts", "array_helper_scripts.R"))
+source(file.path("scripts", "helpers", "project_paths.R"))
+source(file.path("scripts", "helpers", "array_helper_scripts.R"))
 
 #' @Number1
 example_config <- get_analysis_config("vegfri_dox_cytokine_xl")

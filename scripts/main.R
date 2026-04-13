@@ -19,27 +19,14 @@ handlers(handler_progress(
 ))
 
 # helper scripts
-source(file.path("scripts", "project_paths.R"))
-source(file.path("scripts", "array_helper_scripts.R"))
+source(file.path("scripts", "helpers", "project_paths.R"))
+source(file.path("scripts", "helpers", "array_helper_scripts.R"))
 
 #' @Number0 This code requires that the analytes are measured in LICOR software starting in order of the protocol datasheet.
 #' So the S001 corresponds to the very first item on the protocol coordinate system. Background should be measured last, after negative controls
 
 #' @Number1 Parse the protocol data
-#' Note: You must run scripts/extract_analyte_table.py first!!
-
-#' @Number2 Make an .env file with the appropriate arguments.
-#' Note: Regarding the .env file:
-#' commas to separate the elements of the vectors
-#' pipe (|) and colon (:) to represent the list of comparisons,
-#' e.g "Group1:Group2" group1 is the control and group2 is the comparatore.g.
-
-#' @Number3 Load the appropriate .env file
-# dotenv::load("arrays/Lauren Pregnancy Cytokine XL Array/pregnancy_cytokine_xl_array.env")
-# dotenv::load("arrays/Veh vs Sor Dox Lis - Cytokine XL/dox_cytokine_xl_array.env")
-# dotenv::load_dot_env("arrays/Veh vs Sor Dox Lis - Angiogenesis Protein Array/angiogenesis_array.env")
-
-#
+#' Note: Run scripts/setup/extract_analyte_table.py if the protocol workbook does not exist yet.
 
 example_config <- get_analysis_config("vegfri_dox_cytokine_xl")
 

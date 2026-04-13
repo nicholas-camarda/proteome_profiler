@@ -8,27 +8,11 @@ library(patchwork)
 library(ggprism)
 library(ggh4x)
 
-source(file.path("scripts", "project_paths.R"))
-source(file.path("scripts", "array_helper_scripts.R"))
+source(file.path("scripts", "helpers", "project_paths.R"))
+source(file.path("scripts", "helpers", "array_helper_scripts.R"))
 
 #' @Number1 protocol data
-#' @note you must run scripts/extract_analyte_table.py first!!
-
-#' @Number2
-# My angiogenesis
-# info_fn <- "output/Mouse Angiogenesis Array Kit - Protocol.xlsx"
-# data_dir <- "arrays/Veh vs Sor Dox Lis - Angiogenesis Protein Array/data"
-# output_dir <- "output/plots/nick/angiogenesis_array"
-# # Angio
-# ref_coords_to_make_filter <- c("A5,6", "B3,4", "B5,6", "C3,4", "C5,6", "D3,4", "D5,6")
-
-# MY cyto
-# info_fn <- "output/cytoXL array kit - protocol.xlsx"
-# data_dir <- "arrays/Veh vs Sor Dox Lis - Cytokine XL/data"
-# output_dir <- "output/plots/nick/cytokine_xl_array"
-# # CytoXL
-# ref_coords_to_make_filter <- c("H1,2", "H3,4", "G1,2", "G3,4", "F9,10", "F11,12", "E9,10", "E11,12")
-# my_group_lvls <- c("Vehicle", "Sorafenib", "Sor + Dox", "Sor + Lis")
+#' @note run scripts/setup/extract_analyte_table.py first if the protocol workbook does not exist yet.
 
 example_config <- get_analysis_config("vegfri_dox_cytokine_xl")
 info_fn <- example_config$info_fn
