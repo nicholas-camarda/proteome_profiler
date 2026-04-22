@@ -163,6 +163,8 @@ test_that("within-stratum inferential analysis stays within subgroup and adjusts
     expect_true(all(male_results$subgroup == "male"))
     expect_true(all(female_results$subgroup == "female"))
     expect_true("adjusted_p_value" %in% names(male_results))
+    expect_true("effect_se_log2" %in% names(male_results))
+    expect_true(all(is.finite(male_results$effect_se_log2[male_results$test_status == "tested"])))
     expect_true("low_signal_flag" %in% names(male_results))
     expect_true(male_results$low_replication_warning[1])
     expect_equal(
@@ -376,6 +378,16 @@ test_that("normalized t-test uses normalized sheet values", {
     expect_equal(strong_a$analysis_method_label[[1]], get_inferential_method_spec("normalized_t_test")$label)
     expect_equal(strong_a$raw_p_value[[1]], expected_p)
     expect_true(is.finite(strong_a$fold_change_ratio[[1]]))
+    expected_se <- with(
+        sample_df %>% filter(sex == "male", treatment %in% c("control", "drug_a"), Name == "Analyte Strong A"),
+        pooled_log2_ratio_se(
+            control_values = normalized_signal[treatment == "control"],
+            treatment_values = normalized_signal[treatment == "drug_a"],
+            control_mean = mean(normalized_signal[treatment == "control"]),
+            treatment_mean = mean(normalized_signal[treatment == "drug_a"])
+        )
+    )
+    expect_equal(strong_a$effect_se_log2[[1]], expected_se)
     expect_true(is.finite(strong_a$control_mean_normalized[[1]]))
     expect_true(is.finite(strong_a$treatment_mean_normalized[[1]]))
 })

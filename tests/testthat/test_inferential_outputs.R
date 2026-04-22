@@ -40,11 +40,13 @@ test_that("inferential outputs include per-comparison files, index, and workbook
     expect_true(file.exists(out_paths$run_index))
     expect_true(file.exists(out_paths$workbook))
     expect_true(all(file.exists(out_paths$results)))
-    expect_true(file.exists(file.path(output_dir, "comparisons", "male_control_vs_treated", "raw_log2_lm_waterfall.png")))
-    expect_true(file.exists(file.path(output_dir, "comparisons", "female_control_vs_treated", "raw_log2_lm_waterfall.png")))
+    expect_true(file.exists(file.path(output_dir, "comparisons", "male_control_vs_treated", "tables", "raw_log2_lm_results.tsv")))
+    expect_false(file.exists(file.path(output_dir, "comparisons", "male_control_vs_treated", "results.tsv")))
+    expect_true(file.exists(file.path(output_dir, "comparisons", "male_control_vs_treated", "waterfall_plots", "raw_log2_lm", "raw_log2_lm_waterfall.png")))
+    expect_true(file.exists(file.path(output_dir, "comparisons", "female_control_vs_treated", "waterfall_plots", "raw_log2_lm", "raw_log2_lm_waterfall.png")))
 
     male_results <- readr::read_tsv(
-        file.path(output_dir, "comparisons", "male_control_vs_treated", "results.tsv"),
+        file.path(output_dir, "comparisons", "male_control_vs_treated", "tables", "raw_log2_lm_results.tsv"),
         show_col_types = FALSE
     )
     expect_true(all(c("fdr_lt_0_20", "fdr_lt_0_25") %in% names(male_results)))
@@ -65,15 +67,25 @@ test_that("inferential outputs include explicit raw-p and FDR waterfall tiers wh
         low_signal_threshold = 70
     )
 
+    male_hits <- results$results[["male_control_vs_drug_a"]] %>%
+        filter(raw_p_lt_alpha)
+    barplot_data <- build_inferential_fold_change_barplot_data(male_hits)
+    expect_equal(levels(barplot_data$group), c("control", "drug_a"))
+    expect_equal(levels(barplot_data$short_group), c("control", "drug_a"))
+
     write_inferential_outputs(results, output_dir)
 
-    expect_true(file.exists(file.path(output_dir, "comparisons", "male_control_vs_drug_a", "raw_log2_lm_waterfall.png")))
-    expect_true(file.exists(file.path(output_dir, "comparisons", "male_control_vs_drug_a", "raw_log2_lm_waterfall_raw_p_lt_alpha.png")))
-    expect_true(file.exists(file.path(output_dir, "comparisons", "male_control_vs_drug_a", "raw_log2_lm_waterfall_fdr_lt_0_20.png")))
-    expect_true(file.exists(file.path(output_dir, "comparisons", "male_control_vs_drug_a", "raw_log2_lm_waterfall_fdr_lt_0_25.png")))
-    expect_true(file.exists(file.path(output_dir, "comparisons", "female_control_vs_drug_a", "raw_log2_lm_waterfall_raw_p_lt_alpha.png")))
-    expect_true(file.exists(file.path(output_dir, "comparisons", "female_control_vs_drug_a", "raw_log2_lm_waterfall_fdr_lt_0_20.png")))
-    expect_true(file.exists(file.path(output_dir, "comparisons", "female_control_vs_drug_a", "raw_log2_lm_waterfall_fdr_lt_0_25.png")))
+    expect_true(file.exists(file.path(output_dir, "comparisons", "male_control_vs_drug_a", "waterfall_plots", "raw_log2_lm", "raw_log2_lm_waterfall.png")))
+    expect_true(file.exists(file.path(output_dir, "comparisons", "male_control_vs_drug_a", "waterfall_plots", "raw_log2_lm", "raw_log2_lm_waterfall_raw_p_lt_alpha.png")))
+    expect_true(file.exists(file.path(output_dir, "comparisons", "male_control_vs_drug_a", "waterfall_plots", "raw_log2_lm", "raw_log2_lm_waterfall_fdr_lt_0_20.png")))
+    expect_true(file.exists(file.path(output_dir, "comparisons", "male_control_vs_drug_a", "waterfall_plots", "raw_log2_lm", "raw_log2_lm_waterfall_fdr_lt_0_25.png")))
+    expect_true(file.exists(file.path(output_dir, "comparisons", "male_control_vs_drug_a", "barplots", "raw_log2_lm", "all_tested", "raw_log2_lm_barplot_all_tested_page_1.png")))
+    expect_true(file.exists(file.path(output_dir, "comparisons", "male_control_vs_drug_a", "barplots", "raw_log2_lm", "significant_hits", "raw_p_lt_alpha", "raw_log2_lm_barplot_raw_p_lt_alpha_page_1.png")))
+    expect_true(file.exists(file.path(output_dir, "comparisons", "male_control_vs_drug_a", "barplots", "raw_log2_lm", "significant_hits", "fdr_lt_0_20", "raw_log2_lm_barplot_fdr_lt_0_20_page_1.png")))
+    expect_true(file.exists(file.path(output_dir, "comparisons", "male_control_vs_drug_a", "barplots", "raw_log2_lm", "significant_hits", "fdr_lt_0_25", "raw_log2_lm_barplot_fdr_lt_0_25_page_1.png")))
+    expect_true(file.exists(file.path(output_dir, "comparisons", "female_control_vs_drug_a", "waterfall_plots", "raw_log2_lm", "raw_log2_lm_waterfall_raw_p_lt_alpha.png")))
+    expect_true(file.exists(file.path(output_dir, "comparisons", "female_control_vs_drug_a", "waterfall_plots", "raw_log2_lm", "raw_log2_lm_waterfall_fdr_lt_0_20.png")))
+    expect_true(file.exists(file.path(output_dir, "comparisons", "female_control_vs_drug_a", "waterfall_plots", "raw_log2_lm", "raw_log2_lm_waterfall_fdr_lt_0_25.png")))
 })
 
 test_that("multi-method inferential outputs write method-specific workbooks plus comparison outputs", {
@@ -99,10 +111,17 @@ test_that("multi-method inferential outputs write method-specific workbooks plus
     expect_true(file.exists(file.path(output_dir, "normalized_t_test_results.xlsx")))
     expect_true(file.exists(file.path(output_dir, "comparison_workbook.xlsx")))
     expect_true(file.exists(file.path(output_dir, "methods_overview.md")))
-    expect_true(file.exists(file.path(output_dir, "comparisons", "male_control_vs_drug_a", "raw_log2_lm_waterfall.png")))
-    expect_true(file.exists(file.path(output_dir, "comparisons", "male_control_vs_drug_a", "normalized_t_test_waterfall.png")))
-    expect_true(file.exists(file.path(output_dir, "comparisons", "male_control_vs_drug_a", "raw_log2_lm_waterfall_fdr_lt_0_20.png")))
-    expect_true(file.exists(file.path(output_dir, "comparisons", "male_control_vs_drug_a", "normalized_t_test_waterfall_fdr_lt_0_20.png")))
+    expect_true(file.exists(file.path(output_dir, "comparisons", "male_control_vs_drug_a", "tables", "raw_log2_lm_results.tsv")))
+    expect_true(file.exists(file.path(output_dir, "comparisons", "male_control_vs_drug_a", "tables", "normalized_t_test_results.tsv")))
+    expect_false(file.exists(file.path(output_dir, "comparisons", "male_control_vs_drug_a", "results.tsv")))
+    expect_true(file.exists(file.path(output_dir, "comparisons", "male_control_vs_drug_a", "waterfall_plots", "raw_log2_lm", "raw_log2_lm_waterfall.png")))
+    expect_true(file.exists(file.path(output_dir, "comparisons", "male_control_vs_drug_a", "waterfall_plots", "normalized_t_test", "normalized_t_test_waterfall.png")))
+    expect_true(file.exists(file.path(output_dir, "comparisons", "male_control_vs_drug_a", "waterfall_plots", "raw_log2_lm", "raw_log2_lm_waterfall_fdr_lt_0_20.png")))
+    expect_true(file.exists(file.path(output_dir, "comparisons", "male_control_vs_drug_a", "waterfall_plots", "normalized_t_test", "normalized_t_test_waterfall_fdr_lt_0_20.png")))
+    expect_true(file.exists(file.path(output_dir, "comparisons", "male_control_vs_drug_a", "barplots", "raw_log2_lm", "all_tested", "raw_log2_lm_barplot_all_tested_page_1.png")))
+    expect_true(file.exists(file.path(output_dir, "comparisons", "male_control_vs_drug_a", "barplots", "normalized_t_test", "all_tested", "normalized_t_test_barplot_all_tested_page_1.png")))
+    expect_true(file.exists(file.path(output_dir, "comparisons", "male_control_vs_drug_a", "barplots", "raw_log2_lm", "significant_hits", "fdr_lt_0_20", "raw_log2_lm_barplot_fdr_lt_0_20_page_1.png")))
+    expect_true(file.exists(file.path(output_dir, "comparisons", "male_control_vs_drug_a", "barplots", "normalized_t_test", "significant_hits", "fdr_lt_0_20", "normalized_t_test_barplot_fdr_lt_0_20_page_1.png")))
     expect_true(file.exists(out_paths$primary$run_index))
     expect_true(all(file.exists(unname(out_paths$workbooks))))
     expect_true(file.exists(out_paths$comparison$comparison_workbook))

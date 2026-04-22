@@ -88,7 +88,7 @@ test_that("grouped user-facing config shape is normalized into internal fields",
         ),
         shortlist = list(
             comparison = "male_control_vs_treated",
-            top_n = 10
+            analytes = c("Analyte A", "Analyte B")
         )
     )
 
@@ -107,7 +107,7 @@ test_that("grouped user-facing config shape is normalized into internal fields",
         "male_control_vs_treated"
     )
     expect_equal(normalized_config$selection_comparison_slug, "male_control_vs_treated")
-    expect_equal(normalized_config$selection_top_n, 10)
+    expect_equal(normalized_config$selection_analytes, c("Analyte A", "Analyte B"))
     expect_equal(normalized_config$p_adjust_method, "BH")
 })
 
@@ -134,8 +134,7 @@ test_that("grouped shortlist comparisons accept multiple comparison slugs", {
             alpha = 0.05
         ),
         shortlist = list(
-            comparisons = c("male_control_vs_treated", "female_control_vs_treated"),
-            top_n = 10
+            comparisons = c("male_control_vs_treated", "female_control_vs_treated")
         )
     )
 
@@ -144,6 +143,61 @@ test_that("grouped shortlist comparisons accept multiple comparison slugs", {
     expect_equal(
         normalized_config$selection_comparison_slugs,
         c("male_control_vs_treated", "female_control_vs_treated")
+    )
+})
+
+test_that("select-analytes requires explicit analyte names", {
+    expect_error(
+        get_selected_analyte_names(list()),
+        "shortlist\\$analytes"
+    )
+})
+
+test_that("legacy select comparisons resolve to comparison-scoped slugs", {
+    config <- list(
+        comparisons = list(vehicle = c("sorafenib", "sor + dox")),
+        selection_comparison_slugs = c("vehicle_vs_sorafenib", "vehicle_vs_sor_dox")
+    )
+
+    selected_pairs <- resolve_legacy_select_comparisons(config)
+
+    expect_equal(
+        selected_pairs$comparison_slug,
+        c("vehicle_vs_sorafenib", "vehicle_vs_sor_dox")
+    )
+    expect_equal(selected_pairs$control, c("vehicle", "vehicle"))
+    expect_equal(selected_pairs$treatment, c("sorafenib", "sor + dox"))
+})
+
+test_that("replicate-aware grouped configs reject unsupported shortlist knobs", {
+    config_env <- environment(get_analysis_config)
+    config_env$proteome_profiler_config$analyses$replicate_shortlist_basis <- list(
+        user = "lauren",
+        slug = "replicate_shortlist_basis",
+        protocol = list(
+            preset = "cytokine_xl",
+            workbook = "output/protocol.xlsx"
+        ),
+        input = list(
+            manifest = "manifests/example_samples.csv",
+            subgroup = "sex",
+            treatment = "treatment"
+        ),
+        comparisons = list("control" = c("treated")),
+        stats = list(
+            alpha = 0.05
+        ),
+        shortlist = list(
+            comparisons = c("male_control_vs_treated"),
+            basis = "fdr_lt_0_20",
+            top_n = 10,
+            write_bargraphs = TRUE
+        )
+    )
+
+    expect_error(
+        get_analysis_config("replicate_shortlist_basis"),
+        "uses explicit `shortlist\\$analytes`"
     )
 })
 

@@ -239,7 +239,8 @@ write_analysis_config_fixture <- function(path, runtime_root, cloud_parent = tem
                 ref_coords_to_make_filter = c("A3,4"),
                 selection_control = "vehicle",
                 selection_group = "treated",
-                selection_threshold = 1.5
+                selection_threshold = 1.5,
+                selection_analytes = c("Analyte A", "Analyte B")
             ),
             legacy_manifest_smoke = list(
                 mode = "legacy",
@@ -257,7 +258,8 @@ write_analysis_config_fixture <- function(path, runtime_root, cloud_parent = tem
                 groups_per_page = 4,
                 selection_control = "control",
                 selection_group = "treated",
-                selection_threshold = 1.5
+                selection_threshold = 1.5,
+                selection_analytes = c("Analyte A", "Analyte B")
             ),
             replicate_smoke = list(
                 mode = "replicate",
@@ -275,8 +277,9 @@ write_analysis_config_fixture <- function(path, runtime_root, cloud_parent = tem
                 min_reps_per_arm = 2,
                 p_adjust_method = "BH",
                 alpha = 0.05,
+                analysis_methods = c("raw_log2_lm", "normalized_t_test"),
                 selection_comparison_slugs = c("male_control_vs_treated", "female_control_vs_treated"),
-                selection_top_n = 5
+                selection_analytes = c("Analyte A", "Analyte B")
             )
         )
     )
@@ -299,9 +302,10 @@ write_analysis_config_fixture <- function(path, runtime_root, cloud_parent = tem
 run_repo_script <- function(script_path, analysis_name, config_path) {
     old_wd <- setwd(repo_root)
     on.exit(setwd(old_wd), add = TRUE)
+    rscript_bin <- file.path(R.home("bin"), "Rscript")
 
     output <- system2(
-        "Rscript",
+        rscript_bin,
         script_path,
         stdout = TRUE,
         stderr = TRUE,

@@ -236,6 +236,18 @@ normalize_analysis_config <- function(analysis_config) {
         if (!is.null(shortlist[["top_n"]]) && is.null(config[["selection_top_n"]])) {
             config$selection_top_n <- shortlist[["top_n"]]
         }
+        if (!is.null(shortlist[["basis"]]) && is.null(config[["selection_basis"]])) {
+            config$selection_basis <- shortlist[["basis"]]
+        }
+        if (!is.null(shortlist[["method"]]) && is.null(config[["selection_method"]])) {
+            config$selection_method <- shortlist[["method"]]
+        }
+        if (!is.null(shortlist[["analytes"]]) && is.null(config[["selection_analytes"]])) {
+            config$selection_analytes <- unname(as.character(shortlist[["analytes"]]))
+        }
+        if (!is.null(shortlist[["write_bargraphs"]]) && is.null(config[["selection_write_bargraphs"]])) {
+            config$selection_write_bargraphs <- isTRUE(shortlist[["write_bargraphs"]])
+        }
     }
 
     stats <- config[["stats"]]
@@ -251,6 +263,29 @@ normalize_analysis_config <- function(analysis_config) {
         }
         if (!is.null(stats[["methods"]]) && is.null(config[["analysis_methods"]])) {
             config$analysis_methods <- unname(as.character(stats[["methods"]]))
+        }
+    }
+
+    if (is_replicate_aware_config(config)) {
+        unsupported_shortlist_fields <- character()
+        if (!is.null(config[["selection_basis"]])) {
+            unsupported_shortlist_fields <- c(unsupported_shortlist_fields, "`shortlist$basis` / `selection_basis`")
+        }
+        if (!is.null(config[["selection_top_n"]])) {
+            unsupported_shortlist_fields <- c(unsupported_shortlist_fields, "`shortlist$top_n` / `selection_top_n`")
+        }
+        if (!is.null(config[["selection_write_bargraphs"]])) {
+            unsupported_shortlist_fields <- c(unsupported_shortlist_fields, "`shortlist$write_bargraphs` / `selection_write_bargraphs`")
+        }
+        if (length(unsupported_shortlist_fields) > 0) {
+            stop(sprintf(
+                paste(
+                    "Replicate-aware `select-analytes-analysis.R` uses explicit `shortlist$analytes`",
+                    "and writes selected outputs under `select_analytes/<comparison_slug>/<method>/`.",
+                    "Remove these unsupported shortlist fields from the analysis config: %s"
+                ),
+                paste(unsupported_shortlist_fields, collapse = ", ")
+            ))
         }
     }
 

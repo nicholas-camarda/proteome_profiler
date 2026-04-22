@@ -15,6 +15,7 @@ required_analysis_packages <- function(include_parallel = TRUE) {
         "RColorBrewer",
         "latex2exp",
         "patchwork",
+        "ggpubr",
         "ggprism",
         "ggh4x",
         "ggforce",

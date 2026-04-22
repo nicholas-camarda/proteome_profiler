@@ -265,7 +265,7 @@ write_collaborator_config <- function(fixture_root, low_signal_coords, user_name
         "            ),",
         "            shortlist = list(",
         "                comparisons = c(\"male_vehicle_vs_aldosterone\", \"female_vehicle_vs_aldosterone\"),",
-        "                top_n = 10",
+        "                analytes = c(\"Gene 001\", \"Gene 002\", \"Gene 003\")",
         "            )",
         "        )",
         "    )",
@@ -381,17 +381,17 @@ write_fixture_summary <- function(fixture_root, selected_low_signal_coords) {
     run_index_path <- file.path(analysis_root, "inferential_results", "run_index.tsv")
     run_index <- read_tsv(run_index_path, show_col_types = FALSE)
 
-    male_shortlist_summary_path <- file.path(
+    male_selected_qc_path <- file.path(
         analysis_root,
-        "select_analytes", "comparisons", "male_vehicle_vs_aldosterone", "shortlist_summary.tsv"
+        "select_analytes", "male_vehicle_vs_aldosterone", "raw_log2_lm", "selected_analyte_qc.tsv"
     )
-    female_shortlist_summary_path <- file.path(
+    female_selected_qc_path <- file.path(
         analysis_root,
-        "select_analytes", "comparisons", "female_vehicle_vs_aldosterone", "shortlist_summary.tsv"
+        "select_analytes", "female_vehicle_vs_aldosterone", "normalized_t_test", "selected_analyte_qc.tsv"
     )
 
-    male_shortlist_summary <- read_tsv(male_shortlist_summary_path, show_col_types = FALSE)
-    female_shortlist_summary <- read_tsv(female_shortlist_summary_path, show_col_types = FALSE)
+    male_selected_qc <- read_tsv(male_selected_qc_path, show_col_types = FALSE)
+    female_selected_qc <- read_tsv(female_selected_qc_path, show_col_types = FALSE)
 
     summary_lines <- c(
         "# Collaborator Mock Output",
@@ -411,20 +411,21 @@ write_fixture_summary <- function(fixture_root, selected_low_signal_coords) {
         "Key outputs:",
         sprintf("- threshold diagnostics: `%s`", file.path(analysis_root, "threshold_diagnostics", "region_stats.png")),
         sprintf("- run index: `%s`", run_index_path),
-        sprintf("- combined inferential workbook: `%s`", file.path(analysis_root, "inferential_results", "combined_results.xlsx")),
-        sprintf("- male comparison waterfall: `%s`", file.path(analysis_root, "inferential_results", "comparisons", "male_vehicle_vs_aldosterone", "waterfall.png")),
-        sprintf("- female comparison waterfall: `%s`", file.path(analysis_root, "inferential_results", "comparisons", "female_vehicle_vs_aldosterone", "waterfall.png")),
-        sprintf("- male shortlist waterfall: `%s`", file.path(analysis_root, "select_analytes", "comparisons", "male_vehicle_vs_aldosterone", "shortlist_waterfall.png")),
-        sprintf("- female shortlist waterfall: `%s`", file.path(analysis_root, "select_analytes", "comparisons", "female_vehicle_vs_aldosterone", "shortlist_waterfall.png")),
+        sprintf("- side-by-side inferential workbook: `%s`", file.path(analysis_root, "inferential_results", "comparison_workbook.xlsx")),
+        sprintf("- male raw-log2 waterfall: `%s`", file.path(analysis_root, "inferential_results", "comparisons", "male_vehicle_vs_aldosterone", "waterfall_plots", "raw_log2_lm", "raw_log2_lm_waterfall.png")),
+        sprintf("- female normalized-t-test waterfall: `%s`", file.path(analysis_root, "inferential_results", "comparisons", "female_vehicle_vs_aldosterone", "waterfall_plots", "normalized_t_test", "normalized_t_test_waterfall.png")),
+        sprintf("- male raw-log2 selected waterfall: `%s`", file.path(analysis_root, "select_analytes", "male_vehicle_vs_aldosterone", "raw_log2_lm", "selected_waterfall.png")),
+        sprintf("- female normalized-t-test selected waterfall: `%s`", file.path(analysis_root, "select_analytes", "female_vehicle_vs_aldosterone", "normalized_t_test", "selected_waterfall.png")),
+        sprintf("- male raw-log2 selected bargraphs: `%s`", file.path(analysis_root, "select_analytes", "male_vehicle_vs_aldosterone", "raw_log2_lm", "selected_bargraphs")),
         "",
         "Run index preview:",
         paste(capture.output(print(run_index)), collapse = "\n"),
         "",
-        "Male shortlist summary:",
-        paste(capture.output(print(male_shortlist_summary)), collapse = "\n"),
+        "Male selected-analyte QC:",
+        paste(capture.output(print(male_selected_qc)), collapse = "\n"),
         "",
-        "Female shortlist summary:",
-        paste(capture.output(print(female_shortlist_summary)), collapse = "\n")
+        "Female selected-analyte QC:",
+        paste(capture.output(print(female_selected_qc)), collapse = "\n")
     )
 
     summary_path <- file.path(fixture_root, "README.md")

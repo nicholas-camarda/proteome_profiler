@@ -129,11 +129,13 @@ my_project = list(
   stats = list(
     min_reps_per_arm = 2,
     p_adjust_method = "BH",
-    alpha = 0.05
+    alpha = 0.05,
+    methods = c("raw_log2_lm", "normalized_t_test")
   ),
   shortlist = list(
     comparisons = c("male_vehicle_vs_aldosterone", "female_vehicle_vs_aldosterone"),
-    top_n = 10
+    method = c("raw_log2_lm", "normalized_t_test"),
+    analytes = c("CCL3/CCL4/MIP-1α/β", "IL-1α/IL-1F1", "IL-10")
   )
 )
 ```
@@ -180,6 +182,7 @@ Exploratory-only fields:
 - `shortlist$control`
 - `shortlist$treatment`
 - `shortlist$fold_change`
+- `shortlist$analytes`
 
 Replicate-aware input fields:
 
@@ -187,8 +190,16 @@ Replicate-aware input fields:
 - `stats$min_reps_per_arm`
 - `stats$p_adjust_method`
 - `stats$alpha`
+- `stats$methods`
 - `shortlist$comparisons`
-- `shortlist$top_n`
+- `shortlist$method`
+- `shortlist$analytes`
+
+Select-analytes constraints:
+
+- `shortlist$analytes` is required and is the source of truth for selected-analyte outputs
+- `shortlist$method` may be one method or multiple methods in replicate-aware configs; if omitted, the selected-analyte run uses all configured `stats$methods`
+- do not set `shortlist$basis`, `shortlist$top_n`, or `shortlist$write_bargraphs` in replicate-aware configs
 
 ### Step 3: Put The Input Files In Place
 
@@ -260,15 +271,7 @@ What you do with it:
 7. Write that value into [scripts/config/analysis_config.R](scripts/config/analysis_config.R).
 8. Only then run `Rscript scripts/main.R`.
 
-Example of the diagnostic you are interpreting:
-
-![Threshold diagnostics example](docs/output-examples/threshold-diagnostics-region-stats.png)
-
-What the example is showing:
-
-- the top panel shows the candidate low-signal analytes across groups
-- the lower-left histogram shows the signal distribution with the chosen mean threshold marked in magenta
-- this figure is for illustration only; you still need to choose coordinates and a threshold based on your own dataset
+An example render of this diagnostic is shown in [docs/README.md](docs/README.md). The figure is for illustration only; you still need to choose coordinates and a threshold based on your own dataset.
 
 Why the coordinate choice is manual:
 
@@ -395,6 +398,17 @@ Within that root:
 
 `main_analysis/` is legacy exploratory output only.
 
+`select_analytes/` contains explicit selected-analyte follow-up outputs:
+
+- legacy mode: `select_analytes/<comparison_slug>/selected_analytes.tsv`
+- legacy mode: `select_analytes/<comparison_slug>/selected_analyte_qc.tsv`
+- legacy mode: `select_analytes/<comparison_slug>/selected_waterfall.png`
+- legacy mode: `select_analytes/<comparison_slug>/selected_bargraphs/<Analyte>.png`
+- replicate-aware mode: `select_analytes/<comparison_slug>/<method>/selected_results.tsv`
+- replicate-aware mode: `select_analytes/<comparison_slug>/<method>/selected_analyte_qc.tsv`
+- replicate-aware mode: `select_analytes/<comparison_slug>/<method>/selected_waterfall.png`
+- replicate-aware mode: `select_analytes/<comparison_slug>/<method>/selected_bargraphs/<Analyte>.png`
+
 `inferential_results/` exists only for replicate-aware analyses and contains:
 
 - `run_index.tsv`
@@ -402,13 +416,26 @@ Within that root:
 - `normalized_t_test_results.xlsx`
 - `comparison_workbook.xlsx`
 - `methods_overview.md`
-- `comparisons/<comparison_slug>/results.tsv`
-- `comparisons/<comparison_slug>/<method>_waterfall.png`
-- `comparisons/<comparison_slug>/<method>_waterfall_raw_p_lt_alpha.png`
-- `comparisons/<comparison_slug>/<method>_waterfall_fdr_lt_0_20.png`
-- `comparisons/<comparison_slug>/<method>_waterfall_fdr_lt_0_25.png`
+- `comparisons/<comparison_slug>/tables/<method>_results.tsv`
+- `comparisons/<comparison_slug>/waterfall_plots/<method>/<method>_waterfall.png`
+- `comparisons/<comparison_slug>/waterfall_plots/<method>/<method>_waterfall_raw_p_lt_alpha.png`
+- `comparisons/<comparison_slug>/waterfall_plots/<method>/<method>_waterfall_fdr_lt_0_20.png`
+- `comparisons/<comparison_slug>/waterfall_plots/<method>/<method>_waterfall_fdr_lt_0_25.png`
+- `comparisons/<comparison_slug>/barplots/<method>/all_tested/<method>_barplot_all_tested_page_<n>.png`
+- `comparisons/<comparison_slug>/barplots/<method>/significant_hits/raw_p_lt_alpha/<method>_barplot_raw_p_lt_alpha_page_<n>.png`
+- `comparisons/<comparison_slug>/barplots/<method>/significant_hits/fdr_lt_0_20/<method>_barplot_fdr_lt_0_20_page_<n>.png`
+- `comparisons/<comparison_slug>/barplots/<method>/significant_hits/fdr_lt_0_25/<method>_barplot_fdr_lt_0_25_page_<n>.png`
 
 Each configured replicate-aware method gets its own `<method>_results.xlsx` root workbook. `comparison_workbook.xlsx` is the side-by-side workbook that puts the configured methods on the same analyte rows.
+`run_index.tsv` is the primary-method run summary used by the pipeline; collaborators should usually open `comparison_workbook.xlsx` first instead.
+
+Open files in this order when sharing with collaborators:
+
+- `comparison_workbook.xlsx`: side-by-side table for all configured methods
+- `methods_overview.md`: plain-language explanation of what each method and threshold means
+- `comparisons/<comparison_slug>/waterfall_plots/<method>/<method>_waterfall*.png`: method-specific visual ranking for one comparison
+- `comparisons/<comparison_slug>/barplots/<method>/all_tested/<method>_barplot_all_tested_page_<n>.png`: faceted fold-change bars for all tested analytes
+- `comparisons/<comparison_slug>/barplots/<method>/significant_hits/<threshold>/<method>_barplot_<threshold>_page_<n>.png`: faceted fold-change bars for one significant hit set
 
 Replicate-aware inferential waterfall files:
 
@@ -416,42 +443,36 @@ Replicate-aware inferential waterfall files:
 - `<method>_waterfall_raw_p_lt_alpha.png` applies the same plotting rule after filtering to analytes with `raw_p_lt_alpha == TRUE`.
 - `<method>_waterfall_fdr_lt_0_20.png` applies the same plotting rule after filtering to analytes with `fdr_lt_0_20 == TRUE`.
 - `<method>_waterfall_fdr_lt_0_25.png` applies the same plotting rule after filtering to analytes with `fdr_lt_0_25 == TRUE`.
+- Waterfall whiskers, when shown, are `+/- 1` standard error for the plotted `effect_estimate_log2`.
 - For `raw_log2_lm`, `effect_estimate_log2` is the treatment coefficient from `lm(log2(signal) ~ treatment)` using one averaged raw-signal value per biological sample and keeping only finite positive signals for that analyte.
+- For `raw_log2_lm`, `effect_se_log2` is the model standard error of that treatment coefficient.
 - For `raw_log2_lm`, this coefficient is `mean(log2 treated signal) - mean(log2 control signal)` after fitting the two-group model, so positive bars indicate higher treated raw signal and negative bars indicate lower treated raw signal.
 - For `normalized_t_test`, `effect_estimate_log2` is `log2(mean(normalized treatment) / mean(normalized control))` and is only reported when both group means are positive after normalization.
+- For `normalized_t_test`, `effect_se_log2` is a pooled-variance delta-method standard error for the plotted log2 ratio and is only reported when the ratio-scale fold change is interpretable.
+
+Replicate-aware inferential barplot files:
+
+- `<method>_barplot_raw_p_lt_alpha_page_<n>.png`, `<method>_barplot_fdr_lt_0_20_page_<n>.png`, and `<method>_barplot_fdr_lt_0_25_page_<n>.png` use the same threshold sets as the matching waterfall files.
+- `<method>_barplot_all_tested_page_<n>.png` includes every tested analyte with a finite, ratio-scale-interpretable `fold_change_ratio`.
+- these barplots use faceted fold-change bars: control is plotted at fold change `1`, treatment is plotted at the method-specific `fold_change_ratio`, and threshold-hit treatment bars receive bracketed `*` annotations.
+- all-tested barplots are unannotated; the raw-p/FDR-specific barplot sets carry `*` annotations because every treatment bar on those pages passed that threshold.
+- the page caption defines the star threshold, for example `* = FDR < 0.20`, next to the page `N`.
+- analyte titles use fixed-size title strips so short labels and wrapped labels render at the same font size.
+- y-axis limits are fixed across every page within a barplot set and use the smallest rounded range that includes all bars and bracket annotations in that set.
+- barplot pages are only written when at least one analyte in the relevant set has a finite, ratio-scale-interpretable `fold_change_ratio`.
 - `normalized_t_test` p-values come from a two-sided equal-variance two-sample t-test on the normalized replicate values; `raw_log2_lm` p-values come from the treatment term in the linear model.
 
-`select_analytes/` contains the focused follow-up outputs for one or more chosen comparisons.
+`select_analytes/` contains focused follow-up outputs for explicitly configured analytes. Legacy mode writes one `select_analytes/<comparison_slug>/` folder per selected comparison. Replicate-aware mode writes one `select_analytes/<comparison_slug>/<method>/` folder per selected comparison and method, including `selected_results.tsv`, `selected_analyte_qc.tsv`, `selected_waterfall.png`, and one PNG per analyte under `selected_bargraphs/`.
 
 ## Example Outputs
 
-Example output images are stored in [docs/output-examples](docs/output-examples). They were copied from one real legacy exploratory run and are included to show what the generated figures look like. They are examples only, not defaults for a new analysis.
+Rendered example outputs live in [docs/README.md](docs/README.md). The root README does not embed the plot gallery so the main workflow documentation does not visually overemphasize legacy exploratory plots.
 
-### Threshold Diagnostics
+The docs examples include:
 
-![Threshold diagnostics example](docs/output-examples/threshold-diagnostics-region-stats.png)
-
-Source output type: `threshold_diagnostics/region_stats.png`
-
-### Main Analysis Waterfall
-
-![Main analysis waterfall example](docs/output-examples/main-waterfall-sorafenib.png)
-
-Source output type: `main_analysis/.../all_comparisons/waterfalls/...png`
-
-### Main Analysis Combined Barplots
-
-![Main analysis combined barplot example](docs/output-examples/main-barplot-combined-page-1.png)
-
-Source output type: `main_analysis/.../fold_change_hits/.../barplots/...png`
-
-### Select-Analytes Waterfall
-
-![Select analytes waterfall example](docs/output-examples/select-analytes-waterfall.png)
-
-Legacy source output type: `select_analytes/waterfall_plot_*.png`
-
-Replicate-aware shortlist source output type: `select_analytes/comparisons/<comparison_slug>/shortlist_waterfall.png`
+- legacy exploratory threshold, waterfall, barplot, and selected-analytes examples
+- replicate-aware inferential waterfall plots with `+/- 1 SE` whiskers
+- replicate-aware faceted inferential fold-change barplots
 
 ## Statistical Meaning
 
@@ -473,13 +494,18 @@ Replicate-aware mode:
 - `raw_log2_lm` and `normalized_t_test` answer related but different questions because one is fit on raw `log2(signal)` and the other is fit on workbook-style normalized replicate values
 - fold-change values should only be compared within method, not across methods
 - replicate-aware outputs use explicit threshold columns and file names: `raw_p_lt_alpha`, `fdr_lt_0_20`, and `fdr_lt_0_25`
+- `raw_p_lt_alpha` means the unadjusted p-value is below the configured `alpha`, usually `0.05`
+- `fdr_lt_0_20` means the BH-adjusted p-value is below `0.20`
+- `fdr_lt_0_25` means the BH-adjusted p-value is below `0.25`
 - replicate-aware inferential plot file names are method-specific by design; there is no generic inferential `waterfall.png`
+- replicate-aware `select-analytes-analysis.R` writes explicit selected-analyte outputs from `shortlist$analytes`, not significance-derived hit sets
+- `shortlist$method` chooses which inferential method or methods feed those selected exports; if omitted, all configured inferential methods are written
 
 ## Methods Paragraphs
 
 ### With Biological Replicates
 
-Proteome Profiler array signals were processed in R by averaging duplicate membrane spots within each sample, mapping spot coordinates to analytes with a protocol-derived workbook, and performing per-analyte treatment-versus-control inference within each analysis stratum. The primary `raw_log2_lm` method fits `log2(signal) ~ treatment`, so the treatment coefficient estimates the difference in mean log2 raw signal between arms and is reported as both a log2 effect and `2^(coefficient)` fold change. The companion `normalized_t_test` method recomputes workbook-style normalized replicate values from the raw signals and applies a two-sided equal-variance t-test to those normalized values, reporting ratio-scale fold change only when both group means are positive. Raw p-values were adjusted within each comparison family using the Benjamini-Hochberg method, and results were summarized in tabular outputs and waterfall plots. A raw-intensity threshold derived from a low-signal reference panel was used to flag low-signal analytes.
+Proteome Profiler array signals were processed in R by averaging duplicate membrane spots within each sample, mapping spot coordinates to analytes with a protocol-derived workbook, and performing per-analyte treatment-versus-control inference within each analysis stratum. The primary `raw_log2_lm` method fits `log2(signal) ~ treatment`, so the treatment coefficient estimates the difference in mean log2 raw signal between arms and is reported as both a log2 effect and `2^(coefficient)` fold change. The companion `normalized_t_test` method recomputes workbook-style normalized replicate values from the raw signals and applies a two-sided equal-variance t-test to those normalized values, reporting ratio-scale fold change only when both group means are positive. Raw p-values were adjusted within each comparison family using the Benjamini-Hochberg method, and results were summarized in tabular outputs and waterfall plots; waterfall whiskers show `+/- 1` standard error for the plotted effect estimate when available. A raw-intensity threshold derived from a low-signal reference panel was used to flag low-signal analytes.
 
 ### Without Biological Replicates
 

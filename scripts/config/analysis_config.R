@@ -9,7 +9,7 @@
 # The VEGFRi/Dox block below is a worked reference only.
 
 proteome_profiler_config <- list(
-    default_analysis = NULL,
+    default_analysis = "nicole_mf_veh_vs_aldo", # NULL
     runtime_root = "~/ProjectsRuntime/proteome_profiler",
     cloud_parent = "~/Library/CloudStorage/OneDrive-Personal/phd/projects/VEGFRi and Dox/in-vivo mouse projects",
     analyses = list(
@@ -39,7 +39,18 @@ proteome_profiler_config <- list(
             shortlist = list(
                 control = "vehicle",
                 treatment = "sorafenib",
-                fold_change = 1.49
+                fold_change = 1.49,
+                analytes = c(
+                    "Angiopoietin-2",
+                    "CCL21/6Ckine",
+                    "CXCL13/BLC/BCA-1",
+                    "E-Selectin/CD62E",
+                    "IGFBP-1",
+                    "P-Selectin/CD62P",
+                    "Pentraxin 2/SAP",
+                    "Pentraxin 3/TSG-14",
+                    "Serpin E1/PAI-1"
+                )
             )
         ),
         nicole_mf_veh_vs_aldo = list(
@@ -72,7 +83,8 @@ proteome_profiler_config <- list(
             ),
             shortlist = list(
                 comparisons = c("male_vehicle_vs_aldosterone", "female_vehicle_vs_aldosterone"),
-                top_n = 10
+                method = c("raw_log2_lm", "normalized_t_test"),
+                analytes = c("CCL3/CCL4/MIP-1α/β", "IL-1α/IL-1F1", "IL-10")
             )
         )
     )
