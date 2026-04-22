@@ -202,95 +202,118 @@ create_complex_replicate_sample_data <- function() {
         )
 }
 
-write_analysis_config_fixture <- function(path, runtime_root, cloud_parent = tempfile("cloud-root-")) {
+quote_env_value <- function(value) {
+    if (is.null(value) || length(value) == 0 || is.na(value) || identical(value, "")) {
+        return(NULL)
+    }
+    value <- as.character(value)
+    if (grepl("[[:space:]|;=#]", value)) {
+        return(sprintf('"%s"', gsub('"', '\\"', value)))
+    }
+    value
+}
+
+write_env_lines <- function(path, values) {
+    lines <- imap_chr(values, function(value, name) {
+        rendered <- quote_env_value(value)
+        if (is.null(rendered)) {
+            return(NA_character_)
+        }
+        paste0(name, "=", rendered)
+    })
+    writeLines(stats::na.omit(lines), path)
+}
+
+write_env_fixture <- function(path, runtime_root, cloud_parent = tempfile("cloud-root-"), analysis_name = "legacy_smoke", include_selected_analytes = TRUE) {
     dir.create(runtime_root, recursive = TRUE, showWarnings = FALSE)
     dir.create(cloud_parent, recursive = TRUE, showWarnings = FALSE)
 
     protocol_path <- file.path(runtime_root, "output", "protocol.xlsx")
+    protocol_pdf_path <- file.path(runtime_root, "protocols", "mock_protocol.pdf")
     legacy_data_dir <- file.path(runtime_root, "data", "legacy")
     replicate_data_dir <- file.path(runtime_root, "data", "replicate")
     replicate_manifest_path <- file.path(runtime_root, "manifests", "replicate.csv")
 
     dir.create(dirname(protocol_path), recursive = TRUE, showWarnings = FALSE)
+    dir.create(dirname(protocol_pdf_path), recursive = TRUE, showWarnings = FALSE)
     dir.create(dirname(replicate_manifest_path), recursive = TRUE, showWarnings = FALSE)
 
     write_protocol_fixture(protocol_path)
+    writeLines("Mock protocol PDF.", protocol_pdf_path)
     create_legacy_fixture_dir(legacy_data_dir)
     create_replicate_fixture_dir(replicate_data_dir)
     create_replicate_manifest(replicate_manifest_path, replicate_data_dir)
 
-    config_obj <- list(
-        runtime_root = runtime_root,
-        cloud_parent = cloud_parent,
-        analyses = list(
-            legacy_smoke = list(
-                mode = "legacy",
-                user = "tester",
-                analysis_slug = "legacy_smoke",
-                protocol_preset = "cytokine_xl",
-                info_fn = "output/protocol.xlsx",
-                protocol_pdf = "protocols/mock_protocol.pdf",
-                data_dir = "data/legacy",
-                group_levels = c("vehicle", "treated"),
-                comparisons = list("vehicle" = c("treated")),
-                ref_thresh_to_filter = c(80),
-                main_threshold = c(1.5),
-                groups_per_page = 4,
-                ref_coords_to_make_filter = c("A3,4"),
-                selection_control = "vehicle",
-                selection_group = "treated",
-                selection_threshold = 1.5,
-                selection_analytes = c("Analyte A", "Analyte B")
-            ),
-            legacy_manifest_smoke = list(
-                mode = "legacy",
-                user = "tester",
-                analysis_slug = "legacy_manifest_smoke",
-                protocol_preset = "cytokine_xl",
-                info_fn = "output/protocol.xlsx",
-                protocol_pdf = "protocols/mock_protocol.pdf",
-                sample_manifest = "manifests/replicate.csv",
-                treatment_var = "treatment",
-                comparisons = list("control" = c("treated")),
-                ref_coords_to_make_filter = c("A3,4"),
-                ref_thresh_to_filter = c(70),
-                main_threshold = c(1.5),
-                groups_per_page = 4,
-                selection_control = "control",
-                selection_group = "treated",
-                selection_threshold = 1.5,
-                selection_analytes = c("Analyte A", "Analyte B")
-            ),
-            replicate_smoke = list(
-                mode = "replicate",
-                user = "tester",
-                analysis_slug = "replicate_smoke",
-                protocol_preset = "cytokine_xl",
-                info_fn = "output/protocol.xlsx",
-                protocol_pdf = "protocols/mock_protocol.pdf",
-                sample_manifest = "manifests/replicate.csv",
-                subgroup_var = "sex",
-                treatment_var = "treatment",
-                comparisons = list("control" = c("treated")),
-                ref_coords_to_make_filter = c("A3,4"),
-                ref_thresh_to_filter = c(70),
-                min_reps_per_arm = 2,
-                p_adjust_method = "BH",
-                alpha = 0.05,
-                analysis_methods = c("raw_log2_lm", "normalized_t_test"),
-                selection_comparison_slugs = c("male_control_vs_treated", "female_control_vs_treated"),
-                selection_analytes = c("Analyte A", "Analyte B")
-            )
+    common_values <- list(
+        PROTEOME_PROFILER_ANALYSIS = analysis_name,
+        PROTEOME_PROFILER_RUNTIME_ROOT = runtime_root,
+        PROTEOME_PROFILER_CLOUD_PARENT = cloud_parent,
+        PROTEOME_PROFILER_USER = "tester",
+        PROTEOME_PROFILER_PROTOCOL_PRESET = "cytokine_xl",
+        PROTEOME_PROFILER_PROTOCOL_WORKBOOK = "output/protocol.xlsx",
+        PROTEOME_PROFILER_PROTOCOL_PDF = "protocols/mock_protocol.pdf"
+    )
+
+    analysis_values <- switch(analysis_name,
+        legacy_smoke = list(
+            PROTEOME_PROFILER_MODE = "legacy",
+            PROTEOME_PROFILER_SLUG = "legacy_smoke",
+            PROTEOME_PROFILER_INPUT_DATA_DIR = "data/legacy",
+            PROTEOME_PROFILER_GROUP_LEVELS = "vehicle|treated",
+            PROTEOME_PROFILER_TREATMENT_COLUMN = "treatment",
+            PROTEOME_PROFILER_COMPARISONS = "vehicle=treated",
+            PROTEOME_PROFILER_REF_COORDS = "A3,4",
+            PROTEOME_PROFILER_REF_SIGNAL = "80",
+            PROTEOME_PROFILER_FOLD_CHANGE = "1.5",
+            PROTEOME_PROFILER_GROUPS_PER_PAGE = "4",
+            PROTEOME_PROFILER_SHORTLIST_CONTROL = "vehicle",
+            PROTEOME_PROFILER_SHORTLIST_TREATMENT = "treated",
+            PROTEOME_PROFILER_SHORTLIST_FOLD_CHANGE = "1.5"
+        ),
+        legacy_manifest_smoke = list(
+            PROTEOME_PROFILER_MODE = "legacy",
+            PROTEOME_PROFILER_SLUG = "legacy_manifest_smoke",
+            PROTEOME_PROFILER_INPUT_MANIFEST = "manifests/replicate.csv",
+            PROTEOME_PROFILER_TREATMENT_COLUMN = "treatment",
+            PROTEOME_PROFILER_COMPARISONS = "control=treated",
+            PROTEOME_PROFILER_REF_COORDS = "A3,4",
+            PROTEOME_PROFILER_REF_SIGNAL = "70",
+            PROTEOME_PROFILER_FOLD_CHANGE = "1.5",
+            PROTEOME_PROFILER_GROUPS_PER_PAGE = "4",
+            PROTEOME_PROFILER_SHORTLIST_CONTROL = "control",
+            PROTEOME_PROFILER_SHORTLIST_TREATMENT = "treated",
+            PROTEOME_PROFILER_SHORTLIST_FOLD_CHANGE = "1.5"
+        ),
+        replicate_smoke = list(
+            PROTEOME_PROFILER_MODE = "replicate",
+            PROTEOME_PROFILER_SLUG = "replicate_smoke",
+            PROTEOME_PROFILER_INPUT_MANIFEST = "manifests/replicate.csv",
+            PROTEOME_PROFILER_TREATMENT_COLUMN = "treatment",
+            PROTEOME_PROFILER_SUBGROUP_COLUMN = "sex",
+            PROTEOME_PROFILER_COMPARISONS = "control=treated",
+            PROTEOME_PROFILER_REF_COORDS = "A3,4",
+            PROTEOME_PROFILER_REF_SIGNAL = "70",
+            PROTEOME_PROFILER_MIN_REPS_PER_ARM = "2",
+            PROTEOME_PROFILER_P_ADJUST_METHOD = "BH",
+            PROTEOME_PROFILER_ALPHA = "0.05",
+            PROTEOME_PROFILER_ANALYSIS_METHODS = "raw_log2_lm|normalized_t_test",
+            PROTEOME_PROFILER_SHORTLIST_COMPARISONS = "male_control_vs_treated|female_control_vs_treated",
+            PROTEOME_PROFILER_SHORTLIST_METHODS = "raw_log2_lm|normalized_t_test"
         )
     )
+    if (is.null(analysis_values)) {
+        stop(sprintf("Unsupported fixture analysis_name: %s", analysis_name))
+    }
 
-    config_lines <- c(
-        "proteome_profiler_config <-",
-        capture.output(dput(config_obj))
-    )
-    writeLines(config_lines, path)
+    values <- c(common_values, analysis_values)
+    if (include_selected_analytes) {
+        values$PROTEOME_PROFILER_SHORTLIST_ANALYTES <- "Analyte A|Analyte B"
+    }
+
+    write_env_lines(path, values)
 
     invisible(list(
+        env_path = path,
         config_path = path,
         runtime_root = runtime_root,
         legacy_data_dir = legacy_data_dir,
@@ -299,7 +322,7 @@ write_analysis_config_fixture <- function(path, runtime_root, cloud_parent = tem
     ))
 }
 
-run_repo_script <- function(script_path, analysis_name, config_path) {
+run_repo_script <- function(script_path, env_path) {
     old_wd <- setwd(repo_root)
     on.exit(setwd(old_wd), add = TRUE)
     rscript_bin <- file.path(R.home("bin"), "Rscript")
@@ -310,8 +333,7 @@ run_repo_script <- function(script_path, analysis_name, config_path) {
         stdout = TRUE,
         stderr = TRUE,
         env = c(
-            paste0("PROTEOME_PROFILER_ANALYSIS=", analysis_name),
-            paste0("PROTEOME_PROFILER_CONFIG=", config_path)
+            paste0("PROTEOME_PROFILER_ENV_FILE=", env_path)
         )
     )
 

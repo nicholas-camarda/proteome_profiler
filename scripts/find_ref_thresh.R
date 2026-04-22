@@ -2,22 +2,20 @@ rm(list = ls())
 source(file.path("scripts", "helpers", "runtime_setup.R"))
 load_analysis_packages(include_parallel = FALSE)
 
-config_path <- Sys.getenv("PROTEOME_PROFILER_CONFIG", unset = file.path("scripts", "config", "analysis_config.R"))
-# Keep the config load explicit so users can see what to edit and tests can
-# point the script at a fixture-specific config file.
-source(path.expand(config_path))
-source(file.path("scripts", "helpers", "replicate_analysis.R"))
 source(file.path("scripts", "helpers", "project_paths.R"))
+source(file.path("scripts", "helpers", "replicate_analysis.R"))
 source(file.path("scripts", "helpers", "array_helper_scripts.R"))
 
 #' @Number1 protocol data
 #' @note run scripts/setup/extract_analyte_table.py before this script if the protocol workbook has not been created yet.
 
+initialize_runtime_config_from_env(required_env_file = TRUE)
+
 # Load the shared analysis metadata, then write this script's outputs into the
 # per-user analysis tree under `threshold_diagnostics/`.
 # The configured coordinates are a manually chosen low-signal analyte panel
 # used to estimate a practical raw-signal floor for this dataset.
-analysis_name <- get_selected_analysis_name(Sys.getenv("PROTEOME_PROFILER_ANALYSIS", unset = ""))
+analysis_name <- get_selected_analysis_name()
 example_config <- get_analysis_config(analysis_name)
 info_fn <- get_protocol_workbook_path(example_config)
 analysis_output_root <- get_analysis_output_root(example_config)

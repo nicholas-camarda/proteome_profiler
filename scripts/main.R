@@ -7,12 +7,8 @@ load_analysis_packages(include_parallel = TRUE)
 configure_progress_handlers()
 
 # helper scripts
-config_path <- Sys.getenv("PROTEOME_PROFILER_CONFIG", unset = file.path("scripts", "config", "analysis_config.R"))
-# Keep the user-editable config source explicit in the entry script while still
-# allowing tests or collaborators to point at an alternate config file.
-source(path.expand(config_path))
-source(file.path("scripts", "helpers", "replicate_analysis.R"))
 source(file.path("scripts", "helpers", "project_paths.R"))
+source(file.path("scripts", "helpers", "replicate_analysis.R"))
 source(file.path("scripts", "helpers", "array_helper_scripts.R"))
 
 #' @Number0 This code requires that the analytes are measured in LICOR software starting in order of the protocol datasheet.
@@ -21,13 +17,11 @@ source(file.path("scripts", "helpers", "array_helper_scripts.R"))
 #' @Number1 Parse the protocol data
 #' Note: Run scripts/setup/extract_analyte_table.py before the R workflow if the protocol workbook has not been created yet.
 
-# Load the named analysis example from scripts/config/analysis_config.R.
-# This object defines:
-# - who owns the output subtree (`user`)
-# - the analysis folder name under that user (`analysis_slug`)
-# - where the raw data and protocol workbook live
-# - which groups, comparisons, and thresholds this script should run
-analysis_name <- get_selected_analysis_name(Sys.getenv("PROTEOME_PROFILER_ANALYSIS", unset = ""))
+initialize_runtime_config_from_env(required_env_file = TRUE)
+
+# Load the active analysis from `.env`. This object defines who owns the output
+# subtree, where inputs live, and which comparisons/thresholds/methods to run.
+analysis_name <- get_selected_analysis_name()
 example_config <- get_analysis_config(analysis_name)
 analysis_mode <- get_analysis_mode(example_config)
 
@@ -38,7 +32,7 @@ analysis_output_root <- get_analysis_output_root(example_config)
 # a straightforward orchestration layer rather than nested list indexing.
 my_ref_thresh_to_filter <- example_config$ref_thresh_to_filter
 my_comparisons <- example_config$comparisons
-message(qq("Using analysis config: @{analysis_name}"))
+message(qq("Using analysis: @{analysis_name}"))
 message(qq("Resolved protocol table: @{info_fn}"))
 message(qq("Resolved analysis output root: @{analysis_output_root}"))
 

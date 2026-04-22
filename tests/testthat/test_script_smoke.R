@@ -10,29 +10,27 @@ test_that("legacy entry scripts run end-to-end on fixture data", {
     tmp_dir <- tempfile("legacy-smoke-")
     dir.create(tmp_dir)
 
-    fixture_paths <- write_analysis_config_fixture(
-        path = file.path(tmp_dir, "analysis_config.R"),
-        runtime_root = file.path(tmp_dir, "runtime")
+    fixture_paths <- write_env_fixture(
+        path = file.path(tmp_dir, ".env"),
+        runtime_root = file.path(tmp_dir, "runtime"),
+        analysis_name = "legacy_smoke"
     )
 
     find_thresh_result <- run_repo_script(
         script_path = "scripts/find_ref_thresh.R",
-        analysis_name = "legacy_smoke",
-        config_path = fixture_paths$config_path
+        env_path = fixture_paths$env_path
     )
     expect_script_success(find_thresh_result)
 
     main_result <- run_repo_script(
         script_path = "scripts/main.R",
-        analysis_name = "legacy_smoke",
-        config_path = fixture_paths$config_path
+        env_path = fixture_paths$env_path
     )
     expect_script_success(main_result)
 
     shortlist_result <- run_repo_script(
         script_path = "scripts/select-analytes-analysis.R",
-        analysis_name = "legacy_smoke",
-        config_path = fixture_paths$config_path
+        env_path = fixture_paths$env_path
     )
     expect_script_success(shortlist_result)
 
@@ -51,29 +49,27 @@ test_that("manifest-driven exploratory entry scripts run end-to-end on fixture d
     tmp_dir <- tempfile("legacy-manifest-smoke-")
     dir.create(tmp_dir)
 
-    fixture_paths <- write_analysis_config_fixture(
-        path = file.path(tmp_dir, "analysis_config.R"),
-        runtime_root = file.path(tmp_dir, "runtime")
+    fixture_paths <- write_env_fixture(
+        path = file.path(tmp_dir, ".env"),
+        runtime_root = file.path(tmp_dir, "runtime"),
+        analysis_name = "legacy_manifest_smoke"
     )
 
     find_thresh_result <- run_repo_script(
         script_path = "scripts/find_ref_thresh.R",
-        analysis_name = "legacy_manifest_smoke",
-        config_path = fixture_paths$config_path
+        env_path = fixture_paths$env_path
     )
     expect_script_success(find_thresh_result)
 
     main_result <- run_repo_script(
         script_path = "scripts/main.R",
-        analysis_name = "legacy_manifest_smoke",
-        config_path = fixture_paths$config_path
+        env_path = fixture_paths$env_path
     )
     expect_script_success(main_result)
 
     shortlist_result <- run_repo_script(
         script_path = "scripts/select-analytes-analysis.R",
-        analysis_name = "legacy_manifest_smoke",
-        config_path = fixture_paths$config_path
+        env_path = fixture_paths$env_path
     )
     expect_script_success(shortlist_result)
 
@@ -92,29 +88,27 @@ test_that("replicate-aware entry scripts run end-to-end on fixture data", {
     tmp_dir <- tempfile("replicate-smoke-")
     dir.create(tmp_dir)
 
-    fixture_paths <- write_analysis_config_fixture(
-        path = file.path(tmp_dir, "analysis_config.R"),
-        runtime_root = file.path(tmp_dir, "runtime")
+    fixture_paths <- write_env_fixture(
+        path = file.path(tmp_dir, ".env"),
+        runtime_root = file.path(tmp_dir, "runtime"),
+        analysis_name = "replicate_smoke"
     )
 
     find_thresh_result <- run_repo_script(
         script_path = "scripts/find_ref_thresh.R",
-        analysis_name = "replicate_smoke",
-        config_path = fixture_paths$config_path
+        env_path = fixture_paths$env_path
     )
     expect_script_success(find_thresh_result)
 
     main_result <- run_repo_script(
         script_path = "scripts/main.R",
-        analysis_name = "replicate_smoke",
-        config_path = fixture_paths$config_path
+        env_path = fixture_paths$env_path
     )
     expect_script_success(main_result)
 
     shortlist_result <- run_repo_script(
         script_path = "scripts/select-analytes-analysis.R",
-        analysis_name = "replicate_smoke",
-        config_path = fixture_paths$config_path
+        env_path = fixture_paths$env_path
     )
     expect_script_success(shortlist_result)
 
@@ -169,6 +163,7 @@ test_that("replicate-aware entry scripts run end-to-end on fixture data", {
     expect_false(dir.exists(file.path(analysis_root, "select_analytes", "male_control_vs_treated", "raw_log2_lm", "raw_p_lt_alpha")))
     expect_false(dir.exists(file.path(analysis_root, "select_analytes", "male_control_vs_treated", "raw_log2_lm", "fdr_lt_0_20")))
     expect_true("result_path" %in% names(run_index))
+    expect_equal(sort(unique(run_index$analysis_method)), c("normalized_t_test", "raw_log2_lm"))
     expect_true(all(!is.na(run_index$result_path)))
     expect_true(all(file.exists(as.character(run_index$result_path))))
     expect_true("any_low_replication_warning" %in% names(run_index))
@@ -182,4 +177,24 @@ test_that("replicate-aware entry scripts run end-to-end on fixture data", {
     expect_true(all(raw_selected_qc$Name %in% c("Analyte A", "Analyte B")))
     expect_true(any(raw_selected_qc$low_signal_flag))
     expect_true(all(c("plot_status", "no_plot_reason") %in% names(normalized_selected_qc)))
+})
+
+test_that("selected-analyte follow-up stops clearly when analytes are omitted", {
+    tmp_dir <- tempfile("select-no-analytes-")
+    dir.create(tmp_dir)
+
+    fixture_paths <- write_env_fixture(
+        path = file.path(tmp_dir, ".env"),
+        runtime_root = file.path(tmp_dir, "runtime"),
+        analysis_name = "replicate_smoke",
+        include_selected_analytes = FALSE
+    )
+
+    shortlist_result <- run_repo_script(
+        script_path = "scripts/select-analytes-analysis.R",
+        env_path = fixture_paths$env_path
+    )
+
+    expect_false(identical(shortlist_result$status, 0))
+    expect_true(any(grepl("optional for setup validation and main analysis", shortlist_result$output)))
 })

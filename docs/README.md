@@ -4,7 +4,7 @@ This folder holds repo-local output examples that can be embedded directly in th
 
 ## Embedded Output Examples
 
-Legacy exploratory PNGs were copied from one real run so the docs show real renders rather than placeholder descriptions. Replicate-aware examples use synthetic values so collaborator data are not embedded in the repository docs. These are example outputs, not defaults for a new project.
+Legacy exploratory examples show rendered outputs from the no-biological-replicate workflow. Replicate-aware examples use synthetic values so collaborator data are not embedded in the repository docs. These are example outputs, not defaults for a new project.
 
 ## Legacy Exploratory Examples
 
@@ -30,7 +30,7 @@ Source output type: `main_analysis/.../fold_change_hits/.../barplots/...png`
 
 ![Selected analytes waterfall example](output-examples/select-analytes-waterfall.png)
 
-Legacy source output type: `select_analytes/<comparison_slug>/selected_waterfall.png`
+Source output type: `select_analytes/<comparison_slug>/selected_waterfall.png`
 
 Selected-analyte bargraphs are written as one PNG per configured analyte under `select_analytes/<comparison_slug>/selected_bargraphs/`.
 
@@ -44,7 +44,7 @@ These examples use synthetic values so they show the current biological-replicat
 
 Source output type: `inferential_results/comparisons/<comparison_slug>/waterfall_plots/<method>/<method>_waterfall*.png`
 
-This example shows method-specific effect estimates with `+/- 1 SE` whiskers when `effect_se_log2` is available.
+All replicate-aware inferential waterfall methods show method-specific effect estimates with `+/- 1 SE` whiskers for each plotted analyte.
 
 ### Replicate-aware inferential barplot
 
@@ -52,7 +52,7 @@ This example shows method-specific effect estimates with `+/- 1 SE` whiskers whe
 
 Source output type: `inferential_results/comparisons/<comparison_slug>/barplots/<method>/significant_hits/fdr_lt_0_25/<method>_barplot_fdr_lt_0_25_page_<n>.png`
 
-This example shows fixed-size analyte title strips, bracketed `*` annotations, a page caption defining the significance threshold, and fixed y-axis limits within the barplot set.
+This example shows fixed-size analyte title strips, ratio-scale `+/- 1 SE` whiskers on treatment fold-change bars, bracketed `*` annotations, a page caption defining the significance threshold, and fixed y-axis limits within the barplot set.
 
 ### Replicate-aware selected-analyte outputs
 

@@ -7,4 +7,8 @@
 Rplots.pdf
 tests/test_output/
 
+.env
+.env.local
+demo/
+
 analysis_registry.yaml

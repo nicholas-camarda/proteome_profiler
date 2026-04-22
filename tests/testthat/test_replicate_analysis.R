@@ -88,6 +88,32 @@ test_that("replicate-aware dataset can read one workbook with many sample sheets
     expect_true(any(is.finite(sample_df$normalized_signal)))
 })
 
+test_that("manifest validation rejects duplicate workbook sheet mappings", {
+    tmp_dir <- tempfile("replicate-duplicate-sheet-")
+    dir.create(tmp_dir)
+    workbook_path <- file.path(tmp_dir, "collaborator.xlsx")
+    manifest_path <- file.path(tmp_dir, "manifest.csv")
+
+    create_multisheet_replicate_workbook(workbook_path)
+    readr::write_csv(
+        tibble(
+            sample_id = c("M01", "M02"),
+            workbook_path = c(workbook_path, workbook_path),
+            sheet_name = c("M01_sheet", "M01_sheet"),
+            treatment = c("control", "treated"),
+            sex = c("male", "male")
+        ),
+        manifest_path
+    )
+
+    manifest_tbl <- read_sample_manifest(manifest_path, subgroup_var = "sex", treatment_var = "treatment")
+
+    expect_error(
+        resolve_manifest_workbook_paths(manifest_tbl),
+        "same workbook sheet"
+    )
+})
+
 test_that("replicate-aware dataset preserves one row per analyte by sample", {
     tmp_dir <- tempfile("replicate-valid-")
     dir.create(tmp_dir)
@@ -390,4 +416,25 @@ test_that("normalized t-test uses normalized sheet values", {
     expect_equal(strong_a$effect_se_log2[[1]], expected_se)
     expect_true(is.finite(strong_a$control_mean_normalized[[1]]))
     expect_true(is.finite(strong_a$treatment_mean_normalized[[1]]))
+})
+
+test_that("shortlist comparison resolution deduplicates method-specific run-index rows", {
+    run_index <- tibble(
+        comparison_slug = rep(c("male_control_vs_drug_a", "female_control_vs_drug_a"), each = 2),
+        subgroup = rep(c("male", "female"), each = 2),
+        control = "control",
+        treatment = "drug_a",
+        analysis_method = rep(c("raw_log2_lm", "normalized_t_test"), times = 2)
+    )
+    example_config <- list(
+        selection_comparison_slugs = c("male_control_vs_drug_a", "female_control_vs_drug_a")
+    )
+
+    selected <- resolve_shortlist_comparisons(run_index, example_config)
+
+    expect_equal(nrow(selected), 2)
+    expect_equal(
+        selected$comparison_slug,
+        c("male_control_vs_drug_a", "female_control_vs_drug_a")
+    )
 })

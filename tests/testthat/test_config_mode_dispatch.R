@@ -1,3 +1,37 @@
+proteome_env_names <- c(
+    "PROTEOME_PROFILER_ENV_FILE",
+    "PROTEOME_PROFILER_ANALYSIS",
+    "PROTEOME_PROFILER_MODE",
+    "PROTEOME_PROFILER_USER",
+    "PROTEOME_PROFILER_SLUG",
+    "PROTEOME_PROFILER_RUNTIME_ROOT",
+    "PROTEOME_PROFILER_CLOUD_PARENT",
+    "PROTEOME_PROFILER_PROTOCOL_PRESET",
+    "PROTEOME_PROFILER_PROTOCOL_WORKBOOK",
+    "PROTEOME_PROFILER_PROTOCOL_PDF",
+    "PROTEOME_PROFILER_INPUT_MANIFEST",
+    "PROTEOME_PROFILER_TREATMENT_COLUMN",
+    "PROTEOME_PROFILER_SUBGROUP_COLUMN",
+    "PROTEOME_PROFILER_COMPARISONS",
+    "PROTEOME_PROFILER_REF_COORDS",
+    "PROTEOME_PROFILER_REF_SIGNAL",
+    "PROTEOME_PROFILER_ANALYSIS_METHODS",
+    "PROTEOME_PROFILER_SHORTLIST_ANALYTES"
+)
+
+restore_proteome_env_later <- function() {
+    old_values <- Sys.getenv(proteome_env_names, unset = NA_character_)
+    Sys.unsetenv(proteome_env_names)
+    function() {
+        Sys.unsetenv(proteome_env_names)
+        for (idx in seq_along(proteome_env_names)) {
+            if (!is.na(old_values[[idx]])) {
+                do.call(Sys.setenv, as.list(stats::setNames(old_values[[idx]], proteome_env_names[[idx]])))
+            }
+        }
+    }
+}
+
 test_that("config validation distinguishes legacy and replicate-aware modes", {
     legacy_config <- list(
         user = "nick",
@@ -146,10 +180,101 @@ test_that("grouped shortlist comparisons accept multiple comparison slugs", {
     )
 })
 
-test_that("select-analytes requires explicit analyte names", {
+test_that(".env run sheet parses into the internal analysis config", {
+    restore_env <- restore_proteome_env_later()
+    on.exit(restore_env(), add = TRUE)
+
+    env_path <- tempfile(".env-")
+    writeLines(c(
+        "PROTEOME_PROFILER_ANALYSIS=env_example",
+        "PROTEOME_PROFILER_MODE=replicate",
+        "PROTEOME_PROFILER_USER=lauren",
+        "PROTEOME_PROFILER_SLUG=env_slug",
+        "PROTEOME_PROFILER_RUNTIME_ROOT=/tmp/proteome-runtime",
+        "PROTEOME_PROFILER_PROTOCOL_PRESET=cytokine_xl",
+        "PROTEOME_PROFILER_PROTOCOL_WORKBOOK=output/protocol.xlsx",
+        "PROTEOME_PROFILER_INPUT_MANIFEST=manifests/example_samples.csv",
+        "PROTEOME_PROFILER_TREATMENT_COLUMN=treatment",
+        "PROTEOME_PROFILER_SUBGROUP_COLUMN=sex",
+        "PROTEOME_PROFILER_COMPARISONS=control=treated",
+        "PROTEOME_PROFILER_REF_COORDS=A3,4",
+        "PROTEOME_PROFILER_REF_SIGNAL=150",
+        "PROTEOME_PROFILER_ANALYSIS_METHODS=raw_log2_lm|normalized_t_test",
+        "PROTEOME_PROFILER_SHORTLIST_ANALYTES=Analyte A|Analyte B"
+    ), env_path)
+    Sys.setenv(PROTEOME_PROFILER_ENV_FILE = env_path)
+
+    initialize_runtime_config_from_env(required_env_file = TRUE)
+    normalized_config <- get_analysis_config("env_example")
+
+    expect_equal(get_selected_analysis_name(), "env_example")
+    expect_equal(normalized_config$analysis_slug, "env_slug")
+    expect_equal(normalized_config$sample_manifest, "manifests/example_samples.csv")
+    expect_equal(normalized_config$subgroup_var, "sex")
+    expect_equal(normalized_config$comparisons, list(control = "treated"))
+    expect_equal(normalized_config$ref_thresh_to_filter, 150)
+    expect_equal(normalized_config$analysis_methods, c("raw_log2_lm", "normalized_t_test"))
+    expect_equal(normalized_config$selection_analytes, c("Analyte A", "Analyte B"))
+})
+
+test_that("explicit process environment values override .env file values", {
+    restore_env <- restore_proteome_env_later()
+    on.exit(restore_env(), add = TRUE)
+
+    env_path <- tempfile(".env-")
+    writeLines(c(
+        "PROTEOME_PROFILER_ANALYSIS=env_override",
+        "PROTEOME_PROFILER_MODE=legacy",
+        "PROTEOME_PROFILER_USER=tester",
+        "PROTEOME_PROFILER_SLUG=file_slug",
+        "PROTEOME_PROFILER_RUNTIME_ROOT=/tmp/proteome-runtime",
+        "PROTEOME_PROFILER_PROTOCOL_WORKBOOK=output/protocol.xlsx",
+        "PROTEOME_PROFILER_INPUT_DATA_DIR=data/legacy",
+        "PROTEOME_PROFILER_GROUP_LEVELS=vehicle|treated",
+        "PROTEOME_PROFILER_COMPARISONS=vehicle=treated"
+    ), env_path)
+    Sys.setenv(
+        PROTEOME_PROFILER_ENV_FILE = env_path,
+        PROTEOME_PROFILER_SLUG = "process_slug"
+    )
+
+    initialize_runtime_config_from_env(required_env_file = TRUE)
+    normalized_config <- get_analysis_config("env_override")
+
+    expect_equal(normalized_config$analysis_slug, "process_slug")
+})
+
+test_that("selected analytes can be omitted from .env for main analysis config", {
+    restore_env <- restore_proteome_env_later()
+    on.exit(restore_env(), add = TRUE)
+
+    env_path <- tempfile(".env-")
+    writeLines(c(
+        "PROTEOME_PROFILER_ANALYSIS=no_selected",
+        "PROTEOME_PROFILER_MODE=replicate",
+        "PROTEOME_PROFILER_USER=tester",
+        "PROTEOME_PROFILER_SLUG=no_selected",
+        "PROTEOME_PROFILER_RUNTIME_ROOT=/tmp/proteome-runtime",
+        "PROTEOME_PROFILER_PROTOCOL_WORKBOOK=output/protocol.xlsx",
+        "PROTEOME_PROFILER_INPUT_MANIFEST=manifests/example_samples.csv",
+        "PROTEOME_PROFILER_TREATMENT_COLUMN=treatment",
+        "PROTEOME_PROFILER_SUBGROUP_COLUMN=sex",
+        "PROTEOME_PROFILER_COMPARISONS=control=treated",
+        "PROTEOME_PROFILER_ALPHA=0.05"
+    ), env_path)
+    Sys.setenv(PROTEOME_PROFILER_ENV_FILE = env_path)
+
+    initialize_runtime_config_from_env(required_env_file = TRUE)
+    normalized_config <- get_analysis_config("no_selected")
+
+    expect_no_error(validate_analysis_config(normalized_config))
+    expect_null(normalized_config$selection_analytes)
+})
+
+test_that("selected analytes are optional for main analysis but required for select-analytes", {
     expect_error(
         get_selected_analyte_names(list()),
-        "shortlist\\$analytes"
+        "optional for setup validation and main analysis"
     )
 })
 
@@ -216,7 +341,7 @@ test_that("analysis output roots are grouped by user and analysis slug", {
     expect_true(grepl("output/lauren/replicate_example$", output_root))
 })
 
-test_that("selected analysis name comes from env input or optional config default", {
+test_that("selected analysis name comes from active .env-derived config", {
     config_env <- environment(get_selected_analysis_name)
     config_env$proteome_profiler_config$default_analysis <- "legacy_example"
 
@@ -224,7 +349,7 @@ test_that("selected analysis name comes from env input or optional config defaul
     expect_equal(get_selected_analysis_name(""), "legacy_example")
 })
 
-test_that("selected analysis name errors when no explicit or configured default exists", {
+test_that("selected analysis name errors when active config has no analysis name", {
     config_env <- environment(get_selected_analysis_name)
     old_default <- config_env$proteome_profiler_config$default_analysis
     old_analyses <- config_env$proteome_profiler_config$analyses

@@ -221,59 +221,41 @@ quote_string <- function(text_value) {
     sprintf("\"%s\"", text_value)
 }
 
-#' Write the synthetic collaborator analysis config file
+#' Write the synthetic collaborator `.env` run sheet
 #'
 #' @param fixture_root Absolute fixture-root path.
 #' @param low_signal_coords Character vector of coordinate pairs to use as the
 #'   low-signal reference panel.
 #' @param user_name Character user name for the output subtree.
 #'
-#' @return Invisibly returns the config path.
-write_collaborator_config <- function(fixture_root, low_signal_coords, user_name = "nicole") {
-    config_path <- file.path(fixture_root, "analysis_config.R")
+write_collaborator_env <- function(fixture_root, low_signal_coords, user_name = "nicole") {
+    env_path <- file.path(fixture_root, ".env")
 
-    config_lines <- c(
-        "proteome_profiler_config <- list(",
-        sprintf("    runtime_root = %s,", quote_string(fixture_root)),
-        sprintf("    cloud_parent = %s,", quote_string(fixture_root)),
-        "    default_analysis = \"collaborator_aldo_mock\",",
-        "    analyses = list(",
-        "        collaborator_aldo_mock = list(",
-        "            mode = \"replicate\",",
-        sprintf("            user = %s,", quote_string(user_name)),
-        "            slug = \"aldo_plasma_mock_111_gene\",",
-        "            protocol = list(",
-        "                preset = \"cytokine_xl\",",
-        "                workbook = \"tests/test_output/output/mock_protocol.xlsx\"",
-        "            ),",
-        "            input = list(",
-        "                manifest = \"tests/test_output/manifests/collaborator_aldo_samples.csv\",",
-        "                subgroup = \"sex\",",
-        "                treatment = \"treatment\"",
-        "            ),",
-        "            comparisons = list(",
-        "                vehicle = c(\"aldosterone\")",
-        "            ),",
-        "            thresholds = list(",
-        sprintf("                ref_coords = c(%s),", paste(vapply(low_signal_coords, quote_string, character(1)), collapse = ", ")),
-        "                ref_signal = c(70)",
-        "            ),",
-        "            stats = list(",
-        "                min_reps_per_arm = 2,",
-        "                p_adjust_method = \"BH\",",
-        "                alpha = 0.05",
-        "            ),",
-        "            shortlist = list(",
-        "                comparisons = c(\"male_vehicle_vs_aldosterone\", \"female_vehicle_vs_aldosterone\"),",
-        "                analytes = c(\"Gene 001\", \"Gene 002\", \"Gene 003\")",
-        "            )",
-        "        )",
-        "    )",
-        ")"
+    env_lines <- c(
+        "PROTEOME_PROFILER_ANALYSIS=collaborator_aldo_mock",
+        "PROTEOME_PROFILER_MODE=replicate",
+        sprintf("PROTEOME_PROFILER_USER=%s", user_name),
+        "PROTEOME_PROFILER_SLUG=aldo_plasma_mock_111_gene",
+        sprintf("PROTEOME_PROFILER_RUNTIME_ROOT=%s", fixture_root),
+        sprintf("PROTEOME_PROFILER_CLOUD_PARENT=%s", fixture_root),
+        "PROTEOME_PROFILER_PROTOCOL_PRESET=cytokine_xl",
+        "PROTEOME_PROFILER_PROTOCOL_WORKBOOK=tests/test_output/output/mock_protocol.xlsx",
+        "PROTEOME_PROFILER_INPUT_MANIFEST=tests/test_output/manifests/collaborator_aldo_samples.csv",
+        "PROTEOME_PROFILER_TREATMENT_COLUMN=treatment",
+        "PROTEOME_PROFILER_SUBGROUP_COLUMN=sex",
+        "PROTEOME_PROFILER_COMPARISONS=vehicle=aldosterone",
+        sprintf("PROTEOME_PROFILER_REF_COORDS=\"%s\"", paste(low_signal_coords, collapse = "|")),
+        "PROTEOME_PROFILER_REF_SIGNAL=70",
+        "PROTEOME_PROFILER_MIN_REPS_PER_ARM=2",
+        "PROTEOME_PROFILER_P_ADJUST_METHOD=BH",
+        "PROTEOME_PROFILER_ALPHA=0.05",
+        "PROTEOME_PROFILER_ANALYSIS_METHODS=\"raw_log2_lm|normalized_t_test\"",
+        "PROTEOME_PROFILER_SHORTLIST_COMPARISONS=\"male_vehicle_vs_aldosterone|female_vehicle_vs_aldosterone\"",
+        "PROTEOME_PROFILER_SHORTLIST_ANALYTES=\"Gene 001|Gene 002|Gene 003\""
     )
-    writeLines(config_lines, config_path)
+    writeLines(env_lines, env_path)
 
-    invisible(config_path)
+    invisible(env_path)
 }
 
 #' Materialize all synthetic collaborator input files under `tests/test_output`
@@ -323,7 +305,7 @@ write_collaborator_fixture_inputs <- function(fixture_root) {
         pull(Coordinate) %>%
         str_replace_all(", ", ",")
 
-    config_path <- write_collaborator_config(
+    env_path <- write_collaborator_env(
         fixture_root = fixture_root,
         low_signal_coords = initial_low_signal_coords,
         user_name = "nicole"
@@ -333,28 +315,28 @@ write_collaborator_fixture_inputs <- function(fixture_root) {
         fixture_root = fixture_root,
         protocol_path = protocol_path,
         manifest_path = manifest_path,
-        config_path = config_path,
+        env_path = env_path,
+        config_path = env_path,
         manifest_tbl = manifest_tbl,
         protocol_tbl = protocol_tbl,
         initial_low_signal_coords = initial_low_signal_coords
     )
 }
 
-#' Run one repo entry script against the generated collaborator fixture config
+#' Run one repo entry script against the generated collaborator fixture `.env`
 #'
 #' @param script_path Relative repo path to the entry script.
-#' @param config_path Absolute path to the generated config file.
+#' @param env_path Absolute path to the generated `.env` file.
 #'
 #' @return Character vector of combined stdout/stderr.
-run_repo_script <- function(script_path, config_path) {
+run_repo_script <- function(script_path, env_path) {
     output <- system2(
         "Rscript",
         script_path,
         stdout = TRUE,
         stderr = TRUE,
         env = c(
-            "PROTEOME_PROFILER_ANALYSIS=collaborator_aldo_mock",
-            paste0("PROTEOME_PROFILER_CONFIG=", config_path)
+            paste0("PROTEOME_PROFILER_ENV_FILE=", env_path)
         )
     )
 
@@ -403,7 +385,7 @@ write_fixture_summary <- function(fixture_root, selected_low_signal_coords) {
         "- 111 analytes plus protocol-style reference/control rows",
         sprintf("- selected low-signal coordinates: %s", paste(selected_low_signal_coords, collapse = ", ")),
         "",
-        sprintf("Config: `%s`", file.path(fixture_root, "analysis_config.R")),
+        sprintf("Run sheet: `%s`", file.path(fixture_root, ".env")),
         sprintf("Manifest: `%s`", file.path(fixture_root, "manifests", "collaborator_aldo_samples.csv")),
         sprintf("Protocol workbook: `%s`", file.path(fixture_root, "output", "mock_protocol.xlsx")),
         sprintf("Analysis root: `%s`", analysis_root),
@@ -440,7 +422,7 @@ fixture_inputs <- write_collaborator_fixture_inputs(fixture_root)
 old_wd <- setwd(repo_root)
 on.exit(setwd(old_wd), add = TRUE)
 
-run_repo_script("scripts/find_ref_thresh.R", fixture_inputs$config_path)
+run_repo_script("scripts/find_ref_thresh.R", fixture_inputs$env_path)
 candidate_path <- file.path(
     fixture_root,
     "output", "nicole", "aldo_plasma_mock_111_gene",
@@ -449,14 +431,14 @@ candidate_path <- file.path(
 suggested_low_signal_coords <- read_tsv(candidate_path, show_col_types = FALSE) %>%
     slice_head(n = 8) %>%
     pull(Coordinate)
-write_collaborator_config(
+write_collaborator_env(
     fixture_root = fixture_root,
     low_signal_coords = suggested_low_signal_coords,
     user_name = "nicole"
 )
-run_repo_script("scripts/find_ref_thresh.R", fixture_inputs$config_path)
-run_repo_script("scripts/main.R", fixture_inputs$config_path)
-run_repo_script("scripts/select-analytes-analysis.R", fixture_inputs$config_path)
+run_repo_script("scripts/find_ref_thresh.R", fixture_inputs$env_path)
+run_repo_script("scripts/main.R", fixture_inputs$env_path)
+run_repo_script("scripts/select-analytes-analysis.R", fixture_inputs$env_path)
 write_fixture_summary(fixture_root, suggested_low_signal_coords)
 
 cat("Generated collaborator mock fixture and outputs under:\n")

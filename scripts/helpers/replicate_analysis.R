@@ -270,7 +270,11 @@ make_pairwise_comparison_slug <- function(control_label, treatment_label) {
 get_selected_analyte_names <- function(example_config) {
     selected_names <- example_config$selection_analytes
     if (is.null(selected_names) || length(selected_names) == 0 || all(is.na(selected_names)) || all(selected_names == "")) {
-        stop("Select-analytes requires `shortlist$analytes` / `selection_analytes` to list explicit analyte names.")
+        stop(paste(
+            "Selected analytes are optional for setup validation and main analysis,",
+            "but scripts/select-analytes-analysis.R requires PROTEOME_PROFILER_SHORTLIST_ANALYTES",
+            "in .env to write selected-analyte outputs."
+        ), call. = FALSE)
     }
 
     unique(as.character(selected_names))
@@ -476,7 +480,7 @@ resolve_manifest_workbook_paths <- function(manifest, data_dir = NULL) {
         manifest_with_paths$sheet_name <- NA_character_
     }
 
-    manifest_with_paths %>%
+    resolved_manifest <- manifest_with_paths %>%
         left_join(workbook_sheet_map, by = "resolved_workbook_path") %>%
         mutate(
             resolved_sheet_name = pmap_chr(
@@ -512,6 +516,29 @@ resolve_manifest_workbook_paths <- function(manifest, data_dir = NULL) {
             )
         ) %>%
         dplyr::select(-available_sheets)
+
+    duplicate_workbook_sheets <- resolved_manifest %>%
+        count(resolved_workbook_path, resolved_sheet_name, name = "n_rows") %>%
+        filter(n_rows > 1)
+    if (nrow(duplicate_workbook_sheets) > 0) {
+        duplicate_descriptions <- duplicate_workbook_sheets %>%
+            mutate(description = sprintf(
+                "%s [%s]",
+                basename(resolved_workbook_path),
+                resolved_sheet_name
+            )) %>%
+            pull(description)
+        stop(sprintf(
+            paste(
+                "Sample manifest maps multiple sample rows to the same workbook sheet.",
+                "Each sample must have a unique workbook_path/sheet_name pair.",
+                "Duplicate workbook sheet(s): %s"
+            ),
+            paste(duplicate_descriptions, collapse = ", ")
+        ), call. = FALSE)
+    }
+
+    resolved_manifest
 }
 
 #' Read one workbook sheet and normalize it to spot names plus raw signal
@@ -1544,13 +1571,17 @@ run_replicate_analysis_methods <- function(sample_data, comparisons, subgroup_va
 #'
 #' @return Tibble with one row per selected comparison.
 resolve_shortlist_comparisons <- function(run_index, example_config) {
+    available_comparisons <- run_index %>%
+        distinct(comparison_slug, subgroup, control, treatment)
+    available_slugs <- available_comparisons$comparison_slug
+
     configured_slugs <- example_config$selection_comparison_slugs
     if (is.null(configured_slugs) && !is.null(example_config$selection_comparison_slug)) {
         configured_slugs <- example_config$selection_comparison_slug
     }
     if (!is.null(configured_slugs)) {
         configured_slugs <- unique(unname(as.character(configured_slugs)))
-        selected <- run_index %>%
+        selected <- available_comparisons %>%
             filter(comparison_slug %in% configured_slugs)
 
         missing_slugs <- setdiff(configured_slugs, selected$comparison_slug)
@@ -1558,10 +1589,11 @@ resolve_shortlist_comparisons <- function(run_index, example_config) {
             stop(sprintf(
                 paste(
                     "Configured shortlist comparison slug(s) were not found: %s",
-                    "Available slugs: %s"
+                    "Available slugs: %s",
+                    "For replicate-aware .env files, write PROTEOME_PROFILER_SHORTLIST_COMPARISONS as <subgroup value>_<control label>_vs_<treatment label> and separate multiple slugs with |."
                 ),
                 paste(missing_slugs, collapse = ", "),
-                paste(run_index$comparison_slug, collapse = ", ")
+                paste(available_slugs, collapse = ", ")
             ))
         }
 
@@ -1579,29 +1611,30 @@ resolve_shortlist_comparisons <- function(run_index, example_config) {
             control_label = example_config$selection_control,
             treatment_label = example_config$selection_group
         )
-        selected <- run_index %>%
+        selected <- available_comparisons %>%
             filter(comparison_slug == derived_slug)
         if (nrow(selected) == 0) {
             stop(sprintf(
                 "Derived shortlist comparison '%s' was not found. Available slugs: %s",
                 derived_slug,
-                paste(run_index$comparison_slug, collapse = ", ")
+                paste(available_slugs, collapse = ", ")
             ))
         }
         return(slice_head(selected, n = 1))
     }
 
-    if (nrow(run_index) == 1) {
-        return(slice_head(run_index, n = 1))
+    if (nrow(available_comparisons) == 1) {
+        return(slice_head(available_comparisons, n = 1))
     }
 
     stop(sprintf(
         paste(
             "Shortlist selection is ambiguous because multiple inferential comparisons are available.",
-            "Set shortlist$comparisons or selection_subgroup/selection_control/selection_group in the analysis config.",
+            "Set PROTEOME_PROFILER_SHORTLIST_COMPARISONS in .env.",
+            "Use <subgroup value>_<control label>_vs_<treatment label> and separate multiple slugs with |.",
             "Available slugs: %s"
         ),
-        paste(run_index$comparison_slug, collapse = ", ")
+        paste(available_slugs, collapse = ", ")
     ))
 }
 
@@ -1713,6 +1746,14 @@ build_inferential_fold_change_barplot_data <- function(hit_tbl, mark_treatment_s
     if (nrow(hit_tbl) == 0) {
         return(tibble())
     }
+    required_columns <- c("effect_estimate_log2", "effect_se_log2")
+    missing_columns <- setdiff(required_columns, names(hit_tbl))
+    if (length(missing_columns) > 0) {
+        stop(sprintf(
+            "Cannot build inferential fold-change barplots because required column(s) are missing: %s",
+            paste(missing_columns, collapse = ", ")
+        ), call. = FALSE)
+    }
 
     control_label <- unique(as.character(hit_tbl$control))
     treatment_label <- unique(as.character(hit_tbl$treatment))
@@ -1728,6 +1769,8 @@ build_inferential_fold_change_barplot_data <- function(hit_tbl, mark_treatment_s
                 Coordinate,
                 group = as.character(control),
                 relative_signal = 1,
+                relative_signal_ymin = NA_real_,
+                relative_signal_ymax = NA_real_,
                 significant = FALSE,
                 significance_label = NA_character_,
                 significance_definition = NA_character_
@@ -1738,6 +1781,16 @@ build_inferential_fold_change_barplot_data <- function(hit_tbl, mark_treatment_s
                 Coordinate,
                 group = as.character(treatment),
                 relative_signal = fold_change_ratio,
+                relative_signal_ymin = if_else(
+                    is.finite(effect_estimate_log2) & is.finite(effect_se_log2),
+                    2^(effect_estimate_log2 - effect_se_log2),
+                    NA_real_
+                ),
+                relative_signal_ymax = if_else(
+                    is.finite(effect_estimate_log2) & is.finite(effect_se_log2),
+                    2^(effect_estimate_log2 + effect_se_log2),
+                    NA_real_
+                ),
                 significant = mark_treatment_significant,
                 significance_label = if_else(mark_treatment_significant, significance_label, NA_character_),
                 significance_definition = if_else(mark_treatment_significant, significance_definition, NA_character_)
@@ -1755,6 +1808,12 @@ build_inferential_fold_change_barplot_data <- function(hit_tbl, mark_treatment_s
 plot_inferential_fold_change_barplot_pages <- function(barplot_data, title, groups_per_page = 25, ncol = NULL, nrow = NULL, common_y_max = NULL) {
     if (nrow(barplot_data) == 0) {
         return(list())
+    }
+    if (!"relative_signal_ymin" %in% names(barplot_data)) {
+        barplot_data$relative_signal_ymin <- NA_real_
+    }
+    if (!"relative_signal_ymax" %in% names(barplot_data)) {
+        barplot_data$relative_signal_ymax <- NA_real_
     }
 
     if (is.null(ncol) || is.null(nrow)) {
@@ -1787,13 +1846,20 @@ plot_inferential_fold_change_barplot_pages <- function(barplot_data, title, grou
         arrange(significance_label, significance_definition) %>%
         mutate(caption_text = sprintf("%s = %s", significance_label, significance_definition)) %>%
         pull(caption_text)
+    finite_set_signals <- c(
+        barplot_data$relative_signal,
+        barplot_data$relative_signal_ymax
+    )
+    finite_set_signals <- finite_set_signals[is.finite(finite_set_signals)]
+    set_signal_max <- max(finite_set_signals, 1, na.rm = TRUE)
+    if (!is.finite(set_signal_max) || set_signal_max <= 0) {
+        set_signal_max <- 1
+    }
+    required_common_y_max <- max(pretty(c(0, set_signal_max * 1.35), n = 5), na.rm = TRUE)
     if (is.null(common_y_max)) {
-        finite_set_signals <- barplot_data$relative_signal[is.finite(barplot_data$relative_signal)]
-        set_signal_max <- max(finite_set_signals, 1, na.rm = TRUE)
-        if (!is.finite(set_signal_max) || set_signal_max <= 0) {
-            set_signal_max <- 1
-        }
-        common_y_max <- max(pretty(c(0, set_signal_max * 1.22), n = 5), na.rm = TRUE)
+        common_y_max <- required_common_y_max
+    } else {
+        common_y_max <- max(common_y_max, required_common_y_max, na.rm = TRUE)
     }
 
     map(seq_len(total_pages), function(page_i) {
@@ -1829,7 +1895,8 @@ plot_inferential_fold_change_barplot_pages <- function(barplot_data, title, grou
                     label = as.character(round(relative_signal, 1)),
                     label_y = pmax(relative_signal, 0) / 6
                 )
-            finite_relative_signals <- panel_data$relative_signal[is.finite(panel_data$relative_signal)]
+            finite_relative_signals <- c(panel_data$relative_signal, panel_data$relative_signal_ymax)
+            finite_relative_signals <- finite_relative_signals[is.finite(finite_relative_signals)]
             panel_max <- max(finite_relative_signals, 1, na.rm = TRUE)
             significance_df <- panel_data %>%
                 filter(significant, !is.na(significance_label)) %>%
@@ -1855,10 +1922,27 @@ plot_inferential_fold_change_barplot_pages <- function(barplot_data, title, grou
                 xlim(0, 1) +
                 ylim(0, 1) +
                 theme_void() +
-                theme(plot.margin = margin(t = 0, r = 0, b = 0, l = 0))
+                    theme(plot.margin = margin(t = 0, r = 0, b = 0, l = 0))
 
+            errorbar_df <- panel_data %>%
+                filter(
+                    is.finite(relative_signal),
+                    is.finite(relative_signal_ymin),
+                    is.finite(relative_signal_ymax)
+                )
             panel_plot <- ggplot(panel_data, aes(x = short_group, y = relative_signal, fill = group, color = group)) +
                 geom_col(linewidth = rel(1.1)) +
+                geom_errorbar(
+                    data = errorbar_df,
+                    aes(
+                        ymin = pmax(relative_signal_ymin, 0),
+                        ymax = relative_signal_ymax
+                    ),
+                    width = 0.25,
+                    linewidth = 0.8,
+                    color = "black",
+                    inherit.aes = TRUE
+                ) +
                 geom_text(
                     data = labels_df,
                     aes(x = short_group, y = label_y, label = label),
@@ -1870,8 +1954,9 @@ plot_inferential_fold_change_barplot_pages <- function(barplot_data, title, grou
                 ) +
                 scale_y_continuous(
                     limits = c(0, common_y_max),
-                    expand = expansion(mult = c(0, 0.02))
+                    expand = expansion(mult = c(0, 0.04))
                 ) +
+                coord_cartesian(clip = "off") +
                 theme_prism(base_size = 16) +
                 scale_fill_manual(values = fill_values) +
                 scale_color_manual(values = color_values) +
@@ -1969,6 +2054,8 @@ build_legacy_selected_fold_change_barplot_data <- function(selected_dat, mark_th
         mutate(
             group = factor(as.character(group), levels = unique(as.character(group))),
             short_group = factor(as.character(group), levels = levels(group)),
+            relative_signal_ymin = NA_real_,
+            relative_signal_ymax = NA_real_,
             display_name = str_split(as.character(Name), pattern = "/", simplify = TRUE)[, 1],
             display_name = ifelse(display_name == "Complement Component C5", "C5a", display_name),
             Name_Coordinate = str_c(display_name, "\n(", Coordinate, ")"),
@@ -1981,7 +2068,7 @@ build_legacy_selected_fold_change_barplot_data <- function(selected_dat, mark_th
             significance_label = NA_character_,
             significance_definition = NA_character_
         ) %>%
-        select(Name, Coordinate, group, short_group, relative_signal, significant, significance_label, significance_definition, display_name, Name_Coordinate)
+        select(Name, Coordinate, group, short_group, relative_signal, relative_signal_ymin, relative_signal_ymax, significant, significance_label, significance_definition, display_name, Name_Coordinate)
 }
 
 #' Write one selected-analyte fold-change bargraph per analyte
@@ -2012,12 +2099,13 @@ write_selected_fold_change_bargraphs <- function(barplot_data, output_dir, title
         return(tibble(Name = character(), bargraph_path = character()))
     }
 
-    finite_set_signals <- plot_data$relative_signal[is.finite(plot_data$relative_signal)]
+    finite_set_signals <- c(plot_data$relative_signal, plot_data$relative_signal_ymax)
+    finite_set_signals <- finite_set_signals[is.finite(finite_set_signals)]
     set_signal_max <- max(finite_set_signals, 1, na.rm = TRUE)
     if (!is.finite(set_signal_max) || set_signal_max <= 0) {
         set_signal_max <- 1
     }
-    selected_common_y_max <- max(pretty(c(0, set_signal_max * 1.22), n = 5), na.rm = TRUE)
+    selected_common_y_max <- max(pretty(c(0, set_signal_max * 1.35), n = 5), na.rm = TRUE)
 
     unique_names <- plot_data %>%
         distinct(Name, display_name) %>%
@@ -2161,8 +2249,7 @@ write_threshold_bargraph_set <- function(result_tbl, output_dir, filename_prefix
 #' @return ggplot object.
 plot_inferential_waterfall <- function(results_tbl, title) {
     if (!"effect_se_log2" %in% names(results_tbl)) {
-        results_tbl <- results_tbl %>%
-            mutate(effect_se_log2 = NA_real_)
+        stop("Cannot build inferential waterfall plot because results are missing effect_se_log2.", call. = FALSE)
     }
 
     plot_data <- results_tbl %>%
@@ -2176,6 +2263,19 @@ plot_inferential_waterfall <- function(results_tbl, title) {
     if (nrow(plot_data) == 0) {
         stop("Cannot build inferential waterfall plot because there are no tested analytes with finite effect estimates.")
     }
+    if (any(!is.finite(plot_data$effect_se_log2))) {
+        missing_se_names <- plot_data %>%
+            filter(!is.finite(effect_se_log2)) %>%
+            pull(Name) %>%
+            as.character()
+        stop(sprintf(
+            paste(
+                "Cannot build inferential waterfall plot because plotted effect estimates are missing finite standard errors.",
+                "Missing effect_se_log2 for: %s"
+            ),
+            paste(missing_se_names, collapse = ", ")
+        ), call. = FALSE)
+    }
 
     interval_bounds <- c(
         plot_data$effect_estimate_log2,
@@ -2183,7 +2283,6 @@ plot_inferential_waterfall <- function(results_tbl, title) {
         plot_data$effect_estimate_log2 + plot_data$effect_se_log2
     )
     fill_limit <- max(abs(interval_bounds[is.finite(interval_bounds)]), na.rm = TRUE)
-    has_effect_se <- any(is.finite(plot_data$effect_se_log2))
     subtitle_text <- unique(results_tbl$waterfall_subtitle)
     if (length(subtitle_text) == 0 || is.na(subtitle_text[[1]]) || identical(subtitle_text[[1]], "")) {
         subtitle_text <- "Effect estimate is treatment minus control on the log2 signal scale"
@@ -2217,9 +2316,8 @@ plot_inferential_waterfall <- function(results_tbl, title) {
             title = str_wrap(title, width = 55),
             subtitle = str_wrap(subtitle_text, width = 70),
             caption = sprintf(
-                "N analytes plotted = %s%s",
-                nrow(plot_data),
-                ifelse(has_effect_se, "; whiskers = +/- 1 SE of the effect estimate", "")
+                "N analytes plotted = %s; whiskers = +/- 1 SE of the effect estimate",
+                nrow(plot_data)
             )
         ) +
         ylab("Effect estimate (log2 signal)") +
@@ -2263,6 +2361,61 @@ inferential_comparison_waterfall_dir <- function(output_dir, comparison_slug, me
 
 inferential_comparison_barplot_dir <- function(output_dir, comparison_slug, method_name) {
     file.path(output_dir, "comparisons", comparison_slug, "barplots", method_name)
+}
+
+collapse_existing_output_paths <- function(paths) {
+    paths <- paths[file.exists(paths)]
+    if (length(paths) == 0) {
+        return(NA_character_)
+    }
+    paste(sort(paths), collapse = ";")
+}
+
+build_inferential_output_paths_index <- function(run_index, output_dir) {
+    if (nrow(run_index) == 0) {
+        return(tibble())
+    }
+
+    run_index %>%
+        transmute(
+            comparison_slug,
+            analysis_method
+        ) %>%
+        pmap_dfr(function(comparison_slug, analysis_method) {
+            tables_dir <- inferential_comparison_tables_dir(output_dir, comparison_slug)
+            waterfall_dir <- inferential_comparison_waterfall_dir(output_dir, comparison_slug, analysis_method)
+            barplot_dir <- inferential_comparison_barplot_dir(output_dir, comparison_slug, analysis_method)
+
+            tibble(
+                comparison_slug = comparison_slug,
+                analysis_method = analysis_method,
+                result_path = collapse_existing_output_paths(file.path(tables_dir, sprintf("%s_results.tsv", analysis_method))),
+                full_waterfall_path = collapse_existing_output_paths(file.path(waterfall_dir, sprintf("%s_waterfall.png", analysis_method))),
+                raw_p_alpha_waterfall_path = collapse_existing_output_paths(file.path(waterfall_dir, sprintf("%s_waterfall_raw_p_lt_alpha.png", analysis_method))),
+                fdr_0_20_waterfall_path = collapse_existing_output_paths(file.path(waterfall_dir, sprintf("%s_waterfall_fdr_lt_0_20.png", analysis_method))),
+                fdr_0_25_waterfall_path = collapse_existing_output_paths(file.path(waterfall_dir, sprintf("%s_waterfall_fdr_lt_0_25.png", analysis_method))),
+                all_tested_barplot_path = collapse_existing_output_paths(list.files(
+                    file.path(barplot_dir, "all_tested"),
+                    pattern = sprintf("^%s_barplot_all_tested_page_[0-9]+\\.png$", analysis_method),
+                    full.names = TRUE
+                )),
+                raw_p_alpha_barplot_path = collapse_existing_output_paths(list.files(
+                    file.path(barplot_dir, "significant_hits", "raw_p_lt_alpha"),
+                    pattern = sprintf("^%s_barplot_raw_p_lt_alpha_page_[0-9]+\\.png$", analysis_method),
+                    full.names = TRUE
+                )),
+                fdr_0_20_barplot_path = collapse_existing_output_paths(list.files(
+                    file.path(barplot_dir, "significant_hits", "fdr_lt_0_20"),
+                    pattern = sprintf("^%s_barplot_fdr_lt_0_20_page_[0-9]+\\.png$", analysis_method),
+                    full.names = TRUE
+                )),
+                fdr_0_25_barplot_path = collapse_existing_output_paths(list.files(
+                    file.path(barplot_dir, "significant_hits", "fdr_lt_0_25"),
+                    pattern = sprintf("^%s_barplot_fdr_lt_0_25_page_[0-9]+\\.png$", analysis_method),
+                    full.names = TRUE
+                ))
+            )
+        })
 }
 
 clean_inferential_comparison_dir <- function(comparison_dir, remove_organized_dirs = FALSE) {
@@ -2369,6 +2522,7 @@ write_inferential_outputs <- function(inferential_results, output_dir) {
 
         tibble(
             comparison_slug = comparison_slug,
+            analysis_method = method_name,
             result_path = result_path,
             full_waterfall_path = full_waterfall_path,
             raw_p_alpha_waterfall_path = threshold_paths$raw_p_lt_alpha,
@@ -2382,7 +2536,7 @@ write_inferential_outputs <- function(inferential_results, output_dir) {
     })
 
     run_index <- inferential_results$run_index %>%
-        left_join(output_rows, by = "comparison_slug")
+        left_join(output_rows, by = c("comparison_slug", "analysis_method"))
     run_index_path <- file.path(output_dir, "run_index.tsv")
     write_tsv(run_index, run_index_path)
 
@@ -2612,14 +2766,15 @@ write_inferential_method_overview <- function(analysis_methods, output_dir) {
         "- `waterfall_plots/<method>/<method>_waterfall_fdr_lt_0_25.png` includes analytes with BH-adjusted `p < 0.25`.",
         "- `barplots/<method>/all_tested/<method>_barplot_all_tested_page_<n>.png` includes every tested analyte with a finite, ratio-scale-interpretable fold change and does not add threshold annotations.",
         "- `barplots/<method>/significant_hits/raw_p_lt_alpha/<method>_barplot_raw_p_lt_alpha_page_<n>.png`, `barplots/<method>/significant_hits/fdr_lt_0_20/<method>_barplot_fdr_lt_0_20_page_<n>.png`, and `barplots/<method>/significant_hits/fdr_lt_0_25/<method>_barplot_fdr_lt_0_25_page_<n>.png` use the same threshold sets as the matching waterfall files and add bracketed `*` annotations to treatment bars.",
+        "- Barplot whiskers are +/- 1 standard error for each method-specific treatment fold-change estimate, converted from log2-effect SE to the plotted ratio scale.",
         "- Barplot page captions define the star threshold, for example `* = FDR < 0.20`, next to the page `N`.",
         "- Barplot analyte titles use fixed-size title strips so short labels and wrapped labels render at the same font size.",
-        "- Barplot y-axis limits are fixed across every page within a barplot set and use the smallest rounded range that includes all bars and bracket annotations in that set.",
+        "- Barplot y-axis limits are fixed across every page within a barplot set and use the smallest rounded range that includes all bars, SE whiskers, and bracket annotations in that set.",
         "",
         "Important:",
         "- Fold-change values are method-specific and should not be compared across methods as if they were the same quantity.",
         "- `raw_log2_lm` reports effects on the raw `log2(signal)` scale: for one analyte at a time it uses one averaged raw-signal value per biological sample, keeps only finite positive signals, fits `lm(log2(signal) ~ treatment)`, and interprets the treatment coefficient as treated minus control on the log2 raw-signal scale.",
-        "- Waterfall whiskers, when shown, are +/- 1 standard error for the plotted effect estimate.",
+        "- Waterfall whiskers are +/- 1 standard error for each plotted method-specific effect estimate.",
         "- `normalized_t_test` uses raw-data normalized replicate values and reports ratio-scale fold change only when both group means are positive.",
         "- If ratio-scale fold change is not interpretable, the results table marks that row with `fold_change_status` and `fold_change_note`.",
         "- BH correction uses only the analytes that produced a valid p-value within that comparison family.",
@@ -2685,33 +2840,30 @@ write_multi_method_inferential_outputs <- function(inferential_method_results, o
         inferential_results = method_results[[primary_method]],
         output_dir = output_dir
     )
-    method_workbooks <- setNames(
-        map_chr(analysis_methods, function(method_name) {
-            if (identical(method_name, primary_method)) {
-                return(primary_paths$workbook)
-            }
-
-            workbook_run_index <- method_results[[method_name]]$run_index %>%
-                mutate(
-                    result_path = NA_character_,
-                    full_waterfall_path = NA_character_,
-                    raw_p_alpha_waterfall_path = NA_character_,
-                    fdr_0_20_waterfall_path = NA_character_,
-                    fdr_0_25_waterfall_path = NA_character_
-                )
-
-            write_inferential_workbook(
-                inferential_results = method_results[[method_name]],
-                output_dir = output_dir,
-                run_index = workbook_run_index
-            )
-        }),
-        analysis_methods
-    )
     write_method_specific_waterfalls(
         method_results = method_results,
         output_dir = output_dir,
         primary_method = primary_method
+    )
+    combined_run_index <- map_dfr(method_results, "run_index") %>%
+        left_join(
+            build_inferential_output_paths_index(., output_dir),
+            by = c("comparison_slug", "analysis_method")
+        )
+    write_tsv(combined_run_index, file.path(output_dir, "run_index.tsv"))
+
+    method_workbooks <- setNames(
+        map_chr(analysis_methods, function(method_name) {
+            method_run_index <- combined_run_index %>%
+                filter(.data$analysis_method == method_name)
+
+            write_inferential_workbook(
+                inferential_results = method_results[[method_name]],
+                output_dir = output_dir,
+                run_index = method_run_index
+            )
+        }),
+        analysis_methods
     )
 
     comparison_paths <- write_method_comparison_outputs(

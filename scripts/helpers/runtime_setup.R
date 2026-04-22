@@ -20,7 +20,8 @@ required_analysis_packages <- function(include_parallel = TRUE) {
         "ggh4x",
         "ggforce",
         "readr",
-        "writexl"
+        "writexl",
+        "dotenv"
     )
 
     if (include_parallel) {
@@ -37,18 +38,64 @@ required_test_packages <- function() {
     c("testthat", "writexl", "openxlsx")
 }
 
+#' Return missing required analysis packages
+#'
+#' @param include_parallel Logical. When `TRUE`, include packages used by the
+#'   parallelized `scripts/main.R` workflow.
+#'
+#' @return Character vector of missing package names.
+missing_analysis_packages <- function(include_parallel = TRUE) {
+    packages <- required_analysis_packages(include_parallel = include_parallel)
+    package_available <- function(package_name) {
+        if (identical(package_name, "dotenv")) {
+            return(nzchar(suppressWarnings(find.package(package_name, quiet = TRUE))))
+        }
+        requireNamespace(package_name, quietly = TRUE)
+    }
+
+    packages[!vapply(packages, package_available, FUN.VALUE = logical(1))]
+}
+
+#' Stop if required analysis packages are unavailable
+#'
+#' @param include_parallel Logical. When `TRUE`, include packages used by the
+#'   parallelized `scripts/main.R` workflow.
+#'
+#' @return Invisibly returns `TRUE` when all packages are available.
+assert_analysis_packages <- function(include_parallel = TRUE) {
+    missing_packages <- missing_analysis_packages(include_parallel = include_parallel)
+    if (length(missing_packages) > 0) {
+        stop(sprintf(
+            paste(
+                "Missing required R package(s): %s",
+                "Install them with: Rscript scripts/install_packages.R"
+            ),
+            paste(missing_packages, collapse = ", ")
+        ), call. = FALSE)
+    }
+
+    invisible(TRUE)
+}
+
 #' Load the packages required by the active analysis scripts
 #'
-#' This is a thin wrapper around `require()` that reuses the canonical package
-#' list from `required_analysis_packages()`.
+#' This checks the canonical package list before loading anything so missing
+#' packages fail with an actionable setup message.
 #'
 #' @param include_parallel Logical. When `TRUE`, also load the packages needed
 #'   by the parallel main workflow.
 #'
 #' @return Invisibly returns the logical results from `require()` calls.
 load_analysis_packages <- function(include_parallel = TRUE) {
-    invisible(lapply(
+    assert_analysis_packages(include_parallel = include_parallel)
+
+    packages_to_attach <- setdiff(
         required_analysis_packages(include_parallel = include_parallel),
+        "dotenv"
+    )
+
+    invisible(lapply(
+        packages_to_attach,
         require,
         character.only = TRUE
     ))

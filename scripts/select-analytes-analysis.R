@@ -2,12 +2,8 @@ rm(list = ls())
 source(file.path("scripts", "helpers", "runtime_setup.R"))
 load_analysis_packages(include_parallel = FALSE)
 
-config_path <- Sys.getenv("PROTEOME_PROFILER_CONFIG", unset = file.path("scripts", "config", "analysis_config.R"))
-# Keep the config source visible here so users can see what drives the run and
-# tests can override it without editing repo-local analysis settings.
-source(path.expand(config_path))
-source(file.path("scripts", "helpers", "replicate_analysis.R"))
 source(file.path("scripts", "helpers", "project_paths.R"))
+source(file.path("scripts", "helpers", "replicate_analysis.R"))
 source(file.path("scripts", "helpers", "array_helper_scripts.R"))
 
 #' @Number1
@@ -15,7 +11,9 @@ source(file.path("scripts", "helpers", "array_helper_scripts.R"))
 #' analysis tree in `select_analytes/`. Both legacy and replicate-aware modes
 #' use `shortlist$analytes` / `selection_analytes` as the source of truth and
 #' write one comparison-scoped folder per selected comparison.
-analysis_name <- get_selected_analysis_name(Sys.getenv("PROTEOME_PROFILER_ANALYSIS", unset = ""))
+initialize_runtime_config_from_env(required_env_file = TRUE)
+
+analysis_name <- get_selected_analysis_name()
 example_config <- get_analysis_config(analysis_name)
 info_fn <- get_protocol_workbook_path(example_config)
 analysis_output_root <- get_analysis_output_root(example_config)

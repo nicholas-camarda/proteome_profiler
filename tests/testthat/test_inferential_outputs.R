@@ -104,6 +104,15 @@ test_that("multi-method inferential outputs write method-specific workbooks plus
         low_signal_threshold = 70
     )
 
+    walk(results$methods, function(method_result) {
+        walk(method_result$results, function(comparison_result) {
+            plotted_rows <- comparison_result %>%
+                filter(test_status == "tested", is.finite(effect_estimate_log2))
+            expect_true("effect_se_log2" %in% names(plotted_rows))
+            expect_true(all(is.finite(plotted_rows$effect_se_log2)))
+        })
+    })
+
     out_paths <- write_multi_method_inferential_outputs(results, output_dir)
 
     expect_true(file.exists(file.path(output_dir, "run_index.tsv")))
@@ -111,6 +120,15 @@ test_that("multi-method inferential outputs write method-specific workbooks plus
     expect_true(file.exists(file.path(output_dir, "normalized_t_test_results.xlsx")))
     expect_true(file.exists(file.path(output_dir, "comparison_workbook.xlsx")))
     expect_true(file.exists(file.path(output_dir, "methods_overview.md")))
+
+    run_index <- readr::read_tsv(file.path(output_dir, "run_index.tsv"), show_col_types = FALSE)
+    expect_equal(sort(unique(run_index$analysis_method)), c("normalized_t_test", "raw_log2_lm"))
+    expect_equal(nrow(run_index), 4)
+    expect_true(all(!is.na(run_index$result_path)))
+    expect_true(all(file.exists(as.character(run_index$result_path))))
+    expect_true(all(!is.na(run_index$full_waterfall_path)))
+    expect_true(all(file.exists(as.character(run_index$full_waterfall_path))))
+
     expect_true(file.exists(file.path(output_dir, "comparisons", "male_control_vs_drug_a", "tables", "raw_log2_lm_results.tsv")))
     expect_true(file.exists(file.path(output_dir, "comparisons", "male_control_vs_drug_a", "tables", "normalized_t_test_results.tsv")))
     expect_false(file.exists(file.path(output_dir, "comparisons", "male_control_vs_drug_a", "results.tsv")))
@@ -129,6 +147,9 @@ test_that("multi-method inferential outputs write method-specific workbooks plus
     normalized_sheet_names <- openxlsx::getSheetNames(file.path(output_dir, "normalized_t_test_results.xlsx"))
     expect_true("run_index" %in% normalized_sheet_names)
     expect_true(any(normalized_sheet_names != "run_index"))
+    normalized_workbook_index <- readxl::read_excel(file.path(output_dir, "normalized_t_test_results.xlsx"), sheet = "run_index")
+    expect_true(all(normalized_workbook_index$analysis_method == "normalized_t_test"))
+    expect_true(all(!is.na(normalized_workbook_index$result_path)))
 
     expect_false(dir.exists(file.path(output_dir, "methods")))
     expect_false(dir.exists(file.path(output_dir, "method_comparison")))
