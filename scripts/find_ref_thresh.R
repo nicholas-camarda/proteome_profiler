@@ -31,7 +31,7 @@ analyte_info_df <- read_excel(info_fn) %>%
     rename(Name = `Analyte/Control`)
 
 ## Build one analyte-level table for threshold diagnostics, regardless of
-## whether the active analysis is legacy one-workbook-per-group data or a
+## whether the active analysis is exploratory one-workbook-per-group data or a
 ## manifest-driven replicate-aware run.
 if (config_uses_sample_manifest(example_config)) {
     manifest_path <- resolve_project_path(example_config$sample_manifest, must_exist = TRUE)

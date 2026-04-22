@@ -4,9 +4,41 @@ This folder holds repo-local output examples that can be embedded directly in th
 
 ## Embedded Output Examples
 
-Legacy exploratory examples show rendered outputs from the no-biological-replicate workflow. Replicate-aware examples use synthetic values so collaborator data are not embedded in the repository docs. These are example outputs, not defaults for a new project.
+Replicate-aware examples use synthetic values so collaborator data are not embedded in the repository docs. Exploratory examples show rendered outputs from the no-biological-replicate workflow. These are example outputs, not defaults for a new project.
 
-## Legacy Exploratory Examples
+## Replicate-Aware Examples
+
+These examples show the biological-replicate outputs produced under `inferential_results/` and optional selected-analyte follow-up outputs produced under `select_analytes/`.
+
+Open `inferential_results/comparison_workbook.xlsx` first for replicate-aware results. Use `inferential_results/run_index.tsv` when you need exact generated paths.
+
+### Replicate-aware inferential waterfall
+
+![Replicate-aware inferential waterfall example](output-examples/replicate-aware-inferential-waterfall-se.png)
+
+Source output type: `inferential_results/comparisons/<comparison_slug>/waterfall_plots/<method>/<method>_waterfall*.png`
+
+All replicate-aware inferential waterfall methods show method-specific effect estimates with `+/- 1 SE` whiskers for each plotted analyte.
+
+### Replicate-aware inferential barplots
+
+![Replicate-aware inferential barplot example](output-examples/replicate-aware-inferential-barplot-fdr-page-1.png)
+
+All-tested source output type: `inferential_results/comparisons/<comparison_slug>/barplots/<method>/all_tested/<method>_barplot_all_tested_page_<n>.png`
+
+Significant-hit source output type: `inferential_results/comparisons/<comparison_slug>/barplots/<method>/significant_hits/<threshold>/<method>_barplot_<threshold>_page_<n>.png`
+
+This example shows fixed-size analyte title strips, a linear fold-change-ratio y-axis, `+/- 1 SE` whiskers on both control and treatment bars, bracketed `*` annotations, a page caption defining the significance threshold, and fixed y-axis limits within the barplot set. For `normalized_t_test`, the plotted values use per-sample `normalized_signal`, defined as averaged duplicate raw analyte signal divided by that sample's reference-spot denominator. The denominator and exact raw reference signals used for each sample are reported in `input_qc/reference_spot_qc.tsv`. The low-signal threshold creates `low_signal_flag` for every replicate-aware method; it is separate from reference-spot normalization and does not remove analytes before p-value adjustment. The treatment bar is the treatment-arm mean `normalized_signal` divided by the control-arm mean `normalized_signal`; whiskers are symmetric on the plotted linear ratio scale unless the lower bound is clipped at zero. For `raw_log2_lm`, whiskers may appear asymmetric because log2-scale group-mean SE bounds are converted back to the linear ratio scale.
+
+### Replicate-aware selected-analyte outputs
+
+Selected-analyte outputs are optional follow-up outputs. They are created only when `scripts/select-analytes-analysis.R` is run with selected analytes configured.
+
+Source output types: `select_analytes/<comparison_slug>/<method>/selected_results.tsv`, `select_analytes/<comparison_slug>/<method>/selected_analyte_qc.tsv`, `select_analytes/<comparison_slug>/<method>/selected_waterfall.png`, and `select_analytes/<comparison_slug>/<method>/selected_bargraphs/<Analyte>.png`.
+
+For the broader explanation of what each output means and where it is generated, see the root [README.md](../README.md).
+
+## Exploratory Examples
 
 ### Threshold diagnostics
 
@@ -33,32 +65,6 @@ Source output type: `main_analysis/.../fold_change_hits/.../barplots/...png`
 Source output type: `select_analytes/<comparison_slug>/selected_waterfall.png`
 
 Selected-analyte bargraphs are written as one PNG per configured analyte under `select_analytes/<comparison_slug>/selected_bargraphs/`.
-
-## Replicate-Aware Examples
-
-These examples use synthetic values so they show the current biological-replicate outputs without embedding collaborator data.
-
-### Replicate-aware inferential waterfall
-
-![Replicate-aware inferential waterfall example](output-examples/replicate-aware-inferential-waterfall-se.png)
-
-Source output type: `inferential_results/comparisons/<comparison_slug>/waterfall_plots/<method>/<method>_waterfall*.png`
-
-All replicate-aware inferential waterfall methods show method-specific effect estimates with `+/- 1 SE` whiskers for each plotted analyte.
-
-### Replicate-aware inferential barplot
-
-![Replicate-aware inferential barplot example](output-examples/replicate-aware-inferential-barplot-fdr-page-1.png)
-
-Source output type: `inferential_results/comparisons/<comparison_slug>/barplots/<method>/significant_hits/fdr_lt_0_25/<method>_barplot_fdr_lt_0_25_page_<n>.png`
-
-This example shows fixed-size analyte title strips, ratio-scale `+/- 1 SE` whiskers on treatment fold-change bars, bracketed `*` annotations, a page caption defining the significance threshold, and fixed y-axis limits within the barplot set.
-
-### Replicate-aware selected-analyte outputs
-
-Source output types: `select_analytes/<comparison_slug>/<method>/selected_results.tsv`, `select_analytes/<comparison_slug>/<method>/selected_analyte_qc.tsv`, `select_analytes/<comparison_slug>/<method>/selected_waterfall.png`, and `select_analytes/<comparison_slug>/<method>/selected_bargraphs/<Analyte>.png`.
-
-For the broader explanation of what each output means and where it is generated, see the root [README.md](../README.md).
 
 ## Method Notes
 

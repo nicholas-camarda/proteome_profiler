@@ -299,12 +299,12 @@ config_uses_sample_manifest <- function(example_config) {
 #'
 #' @param example_config Named list describing one analysis run.
 #'
-#' @return Character scalar, either `"legacy"` or `"replicate"`.
+#' @return Character scalar, either `"exploratory"` or `"replicate"`.
 get_analysis_mode <- function(example_config) {
     explicit_mode <- example_config[["mode"]]
     if (!is.null(explicit_mode) && !identical(explicit_mode, "") && !is.na(explicit_mode)) {
-        if (!explicit_mode %in% c("legacy", "replicate")) {
-            stop("Analysis config `mode` must be either 'legacy' or 'replicate'.")
+        if (!explicit_mode %in% c("exploratory", "replicate")) {
+            stop("Analysis config `mode` must be either 'exploratory' or 'replicate'.")
         }
         return(explicit_mode)
     }
@@ -313,7 +313,7 @@ get_analysis_mode <- function(example_config) {
         return("replicate")
     }
 
-    "legacy"
+    "exploratory"
 }
 
 #' Build candidate filesystem locations for a project-relative path

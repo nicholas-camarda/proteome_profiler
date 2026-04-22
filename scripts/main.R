@@ -74,7 +74,22 @@ if (config_uses_sample_manifest(example_config)) {
         output_dir = cleanliness_output_dir
     )
     cleanliness_summary <- read_tsv(cleanliness_paths$summary, show_col_types = FALSE)
+    reference_spot_summary <- read_tsv(cleanliness_paths$reference_spot_summary, show_col_types = FALSE)
     message(qq("Wrote sample-level input QC to @{cleanliness_output_dir}"))
+    message(qq(
+        paste(
+            "Reference spot QC:",
+            "@{reference_spot_summary$n_preferred_complete[[1]]}/@{reference_spot_summary$n_samples[[1]]} samples used complete preferred A1,2/J1,2 raw reference spots;",
+            "@{reference_spot_summary$n_preferred_partial[[1]]} partial preferred;",
+            "@{reference_spot_summary$n_protocol_fallback[[1]]} protocol-table fallback.",
+            "See input_qc/reference_spot_qc.tsv."
+        )
+    ))
+    if (reference_spot_summary$n_reference_qc_issues[[1]] > 0) {
+        message(qq(
+            "Reference spot QC found @{reference_spot_summary$n_reference_qc_issues[[1]]} sample(s) requiring review; see input_qc/reference_spot_qc.tsv."
+        ))
+    }
     if (cleanliness_summary$n_nonpositive_signal[[1]] > 0) {
         message(qq(
             paste(
@@ -155,7 +170,7 @@ if (analysis_mode == "replicate") {
     my_initial_ready_df <- if (config_uses_sample_manifest(example_config)) {
         # Exploratory manifest-driven runs still collapse to one analyte-by-condition
         # table before plotting; the manifest only replaces filename-based input
-        # declaration, not the legacy plotting semantics.
+        # declaration, not the exploratory plotting semantics.
         build_threshold_diagnostic_dataset(
             sample_data = sample_level_df,
             subgroup_var = example_config$subgroup_var

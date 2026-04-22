@@ -32,13 +32,13 @@ restore_proteome_env_later <- function() {
     }
 }
 
-test_that("config validation distinguishes legacy and replicate-aware modes", {
-    legacy_config <- list(
+test_that("config validation distinguishes exploratory and replicate-aware modes", {
+    exploratory_config <- list(
         user = "nick",
-        analysis_slug = "legacy_example",
+        analysis_slug = "exploratory_example",
         protocol_preset = "cytokine_xl",
         info_fn = "output/protocol.xlsx",
-        data_dir = "data/legacy",
+        data_dir = "data/exploratory",
         comparisons = list("control" = c("treated")),
         group_levels = c("control", "treated")
     )
@@ -57,17 +57,17 @@ test_that("config validation distinguishes legacy and replicate-aware modes", {
         alpha = 0.05
     )
 
-    expect_false(is_replicate_aware_config(legacy_config))
+    expect_false(is_replicate_aware_config(exploratory_config))
     expect_true(is_replicate_aware_config(inferential_config))
-    expect_no_error(validate_analysis_config(legacy_config))
+    expect_no_error(validate_analysis_config(exploratory_config))
     expect_no_error(validate_analysis_config(inferential_config))
 })
 
 test_that("manifest-driven exploratory configs validate without inferential fields", {
     exploratory_manifest_config <- list(
-        mode = "legacy",
+        mode = "exploratory",
         user = "nick",
-        analysis_slug = "legacy_manifest_example",
+        analysis_slug = "exploratory_manifest_example",
         protocol_preset = "cytokine_xl",
         info_fn = "output/protocol.xlsx",
         sample_manifest = "manifests/example_samples.csv",
@@ -224,12 +224,12 @@ test_that("explicit process environment values override .env file values", {
     env_path <- tempfile(".env-")
     writeLines(c(
         "PROTEOME_PROFILER_ANALYSIS=env_override",
-        "PROTEOME_PROFILER_MODE=legacy",
+        "PROTEOME_PROFILER_MODE=exploratory",
         "PROTEOME_PROFILER_USER=tester",
         "PROTEOME_PROFILER_SLUG=file_slug",
         "PROTEOME_PROFILER_RUNTIME_ROOT=/tmp/proteome-runtime",
         "PROTEOME_PROFILER_PROTOCOL_WORKBOOK=output/protocol.xlsx",
-        "PROTEOME_PROFILER_INPUT_DATA_DIR=data/legacy",
+        "PROTEOME_PROFILER_INPUT_DATA_DIR=data/exploratory",
         "PROTEOME_PROFILER_GROUP_LEVELS=vehicle|treated",
         "PROTEOME_PROFILER_COMPARISONS=vehicle=treated"
     ), env_path)
@@ -333,7 +333,7 @@ test_that("analysis output roots are grouped by user and analysis slug", {
         protocol_preset = "cytokine_xl",
         info_fn = "output/protocol.xlsx",
         comparisons = list("control" = c("treated")),
-        data_dir = "data/legacy",
+        data_dir = "data/exploratory",
         group_levels = c("control", "treated")
     )
 
@@ -343,10 +343,10 @@ test_that("analysis output roots are grouped by user and analysis slug", {
 
 test_that("selected analysis name comes from active .env-derived config", {
     config_env <- environment(get_selected_analysis_name)
-    config_env$proteome_profiler_config$default_analysis <- "legacy_example"
+    config_env$proteome_profiler_config$default_analysis <- "exploratory_example"
 
     expect_equal(get_selected_analysis_name("replicate_example"), "replicate_example")
-    expect_equal(get_selected_analysis_name(""), "legacy_example")
+    expect_equal(get_selected_analysis_name(""), "exploratory_example")
 })
 
 test_that("selected analysis name errors when active config has no analysis name", {
@@ -355,7 +355,7 @@ test_that("selected analysis name errors when active config has no analysis name
     old_analyses <- config_env$proteome_profiler_config$analyses
     config_env$proteome_profiler_config$default_analysis <- NULL
     config_env$proteome_profiler_config$analyses <- list(
-        legacy_example = list(),
+        exploratory_example = list(),
         replicate_example = list()
     )
     on.exit({

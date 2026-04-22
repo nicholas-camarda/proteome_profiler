@@ -120,6 +120,9 @@ test_that("multi-method inferential outputs write method-specific workbooks plus
     expect_true(file.exists(file.path(output_dir, "normalized_t_test_results.xlsx")))
     expect_true(file.exists(file.path(output_dir, "comparison_workbook.xlsx")))
     expect_true(file.exists(file.path(output_dir, "methods_overview.md")))
+    expect_false(file.exists(file.path(output_dir, "run_summary.xlsx")))
+    expect_false(dir.exists(file.path(output_dir, "run_report")))
+    expect_false(dir.exists(file.path(output_dir, "summary_report")))
 
     run_index <- readr::read_tsv(file.path(output_dir, "run_index.tsv"), show_col_types = FALSE)
     expect_equal(sort(unique(run_index$analysis_method)), c("normalized_t_test", "raw_log2_lm"))
@@ -151,6 +154,51 @@ test_that("multi-method inferential outputs write method-specific workbooks plus
     expect_true(all(normalized_workbook_index$analysis_method == "normalized_t_test"))
     expect_true(all(!is.na(normalized_workbook_index$result_path)))
 
+    comparison_workbook_path <- file.path(output_dir, "comparison_workbook.xlsx")
+    comparison_sheet_names <- openxlsx::getSheetNames(comparison_workbook_path)
+    expect_equal(
+        comparison_sheet_names[1:4],
+        c("summary", "input_qc_summary", "method_summary", "significance_summary")
+    )
+    expect_false("selected_analytes_summary" %in% comparison_sheet_names)
+
+    comparison_summary <- readxl::read_excel(comparison_workbook_path, sheet = "summary")
+    input_qc_summary <- readxl::read_excel(comparison_workbook_path, sheet = "input_qc_summary")
+    method_summary <- readxl::read_excel(comparison_workbook_path, sheet = "method_summary")
+    significance_summary <- readxl::read_excel(comparison_workbook_path, sheet = "significance_summary")
+
+    expect_equal(comparison_summary$n_methods[[1]], 2)
+    expect_equal(comparison_summary$n_comparisons[[1]], 2)
+    expect_equal(comparison_summary$n_method_comparison_rows[[1]], 4)
+    expect_equal(nrow(input_qc_summary), 4)
+    expect_true(all(c("n_low_signal_flagged", "n_not_testable", "n_low_replication_warning") %in% names(input_qc_summary)))
+    expect_equal(sort(method_summary$analysis_method), c("normalized_t_test", "raw_log2_lm"))
+    expect_equal(nrow(significance_summary), 4)
+    expect_true(all(c("n_tested", "n_raw_p_lt_alpha", "n_fdr_lt_0_20", "n_fdr_lt_0_25") %in% names(significance_summary)))
+
+    raw_written <- readr::read_tsv(
+        file.path(output_dir, "comparisons", "male_control_vs_drug_a", "tables", "raw_log2_lm_results.tsv"),
+        show_col_types = FALSE
+    )
+    raw_memory <- results$methods$raw_log2_lm$results$male_control_vs_drug_a
+    raw_written_row <- raw_written %>% filter(Name == "Analyte Strong A")
+    raw_memory_row <- raw_memory %>% filter(Name == "Analyte Strong A")
+    expect_equal(raw_written_row$raw_p_value, raw_memory_row$raw_p_value, tolerance = 1e-12)
+    expect_equal(raw_written_row$adjusted_p_value, raw_memory_row$adjusted_p_value, tolerance = 1e-12)
+    expect_equal(raw_written_row$fold_change_ratio, raw_memory_row$fold_change_ratio, tolerance = 1e-12)
+    expect_equal(raw_written_row$fdr_lt_0_20, raw_memory_row$fdr_lt_0_20)
+
+    normalized_written <- readr::read_tsv(
+        file.path(output_dir, "comparisons", "male_control_vs_drug_a", "tables", "normalized_t_test_results.tsv"),
+        show_col_types = FALSE
+    )
+    normalized_memory <- results$methods$normalized_t_test$results$male_control_vs_drug_a
+    normalized_written_row <- normalized_written %>% filter(Name == "Analyte Strong A")
+    normalized_memory_row <- normalized_memory %>% filter(Name == "Analyte Strong A")
+    expect_equal(normalized_written_row$raw_p_value, normalized_memory_row$raw_p_value, tolerance = 1e-12)
+    expect_equal(normalized_written_row$effect_se_log2, normalized_memory_row$effect_se_log2, tolerance = 1e-12)
+    expect_equal(normalized_written_row$fold_change_ratio, normalized_memory_row$fold_change_ratio, tolerance = 1e-12)
+
     expect_false(dir.exists(file.path(output_dir, "methods")))
     expect_false(dir.exists(file.path(output_dir, "method_comparison")))
     expect_false(file.exists(file.path(output_dir, "method_index.tsv")))
@@ -167,10 +215,21 @@ test_that("sample-level cleanliness outputs summarize nonpositive rows", {
     expect_true(file.exists(qc_paths$sample_summary))
     expect_true(file.exists(qc_paths$analyte_summary))
     expect_true(file.exists(qc_paths$issue_rows))
+    expect_true(file.exists(qc_paths$reference_spot_summary))
+    expect_true(file.exists(qc_paths$reference_spot_qc))
 
     summary_tbl <- readr::read_tsv(qc_paths$summary, show_col_types = FALSE)
     issue_tbl <- readr::read_tsv(qc_paths$issue_rows, show_col_types = FALSE)
+    reference_summary_tbl <- readr::read_tsv(qc_paths$reference_spot_summary, show_col_types = FALSE)
+    reference_qc_tbl <- readr::read_tsv(qc_paths$reference_spot_qc, show_col_types = FALSE)
 
     expect_gt(summary_tbl$n_nonpositive_signal[[1]], 0)
     expect_true(all(issue_tbl$signal_issue %in% c("negative", "zero", "missing", "non_finite")))
+    expect_equal(reference_summary_tbl$n_samples[[1]], dplyr::n_distinct(sample_df$sample_id))
+    expect_true(all(c(
+        "normalization_denominator",
+        "normalization_reference_status",
+        "reference_qc_issue"
+    ) %in% names(reference_qc_tbl)))
+    expect_true(all(reference_qc_tbl$reference_qc_issue == "ok"))
 })

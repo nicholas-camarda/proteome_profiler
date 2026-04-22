@@ -53,7 +53,11 @@ test_that("faceted inferential barplots define star threshold in page caption", 
         treatment = "drug",
         fold_change_ratio = c(1.8, 1.3),
         effect_estimate_log2 = log2(c(1.8, 1.3)),
-        effect_se_log2 = c(0.2, 0.1)
+        effect_se_log2 = c(0.2, 0.1),
+        control_fold_change_ymin = c(0.9, 0.95),
+        control_fold_change_ymax = c(1.1, 1.05),
+        treatment_fold_change_ymin = c(1.6, 1.2),
+        treatment_fold_change_ymax = c(2.0, 1.4)
     )
 
     barplot_data <- build_inferential_fold_change_barplot_data(
@@ -69,7 +73,7 @@ test_that("faceted inferential barplots define star threshold in page caption", 
     )
 
     expect_true(all(na.omit(barplot_data$significance_label) == "*"))
-    expect_equal(pages[[1]]$patches$annotation$caption, "* = FDR < 0.20; N = 2 / 2")
+    expect_equal(pages[[1]]$patches$annotation$caption, "* = FDR < 0.20; Analytes shown = 2 / 2")
 })
 
 test_that("faceted inferential barplots render fixed-size panel title strips", {
@@ -80,7 +84,11 @@ test_that("faceted inferential barplots render fixed-size panel title strips", {
         treatment = "aldosterone",
         fold_change_ratio = c(1.4, 1.5),
         effect_estimate_log2 = log2(c(1.4, 1.5)),
-        effect_se_log2 = c(0.1, 0.1)
+        effect_se_log2 = c(0.1, 0.1),
+        control_fold_change_ymin = c(0.9, 0.9),
+        control_fold_change_ymax = c(1.1, 1.1),
+        treatment_fold_change_ymin = c(1.3, 1.4),
+        treatment_fold_change_ymax = c(1.5, 1.6)
     )
 
     barplot_data <- build_inferential_fold_change_barplot_data(
@@ -102,7 +110,7 @@ test_that("faceted inferential barplots render fixed-size panel title strips", {
     expect_gt(file.info(out_path)$size, 0)
 })
 
-test_that("replicate-aware barplot data includes treatment SE whiskers on fold-change scale", {
+test_that("replicate-aware barplot data includes control and treatment SE whiskers on fold-change scale", {
     result_tbl <- tibble(
         Name = "A",
         Coordinate = "A1",
@@ -110,17 +118,21 @@ test_that("replicate-aware barplot data includes treatment SE whiskers on fold-c
         treatment = "drug",
         fold_change_ratio = 2,
         effect_estimate_log2 = 1,
-        effect_se_log2 = 0.25
+        effect_se_log2 = 0.25,
+        control_fold_change_ymin = 0.8,
+        control_fold_change_ymax = 1.2,
+        treatment_fold_change_ymin = 1.7,
+        treatment_fold_change_ymax = 2.3
     )
 
     barplot_data <- build_inferential_fold_change_barplot_data(result_tbl)
     treatment_row <- barplot_data %>% filter(as.character(group) == "drug")
     control_row <- barplot_data %>% filter(as.character(group) == "control")
 
-    expect_equal(treatment_row$relative_signal_ymin[[1]], 2^(1 - 0.25))
-    expect_equal(treatment_row$relative_signal_ymax[[1]], 2^(1 + 0.25))
-    expect_true(is.na(control_row$relative_signal_ymin[[1]]))
-    expect_true(is.na(control_row$relative_signal_ymax[[1]]))
+    expect_equal(control_row$relative_signal_ymin[[1]], 0.8)
+    expect_equal(control_row$relative_signal_ymax[[1]], 1.2)
+    expect_equal(treatment_row$relative_signal_ymin[[1]], 1.7)
+    expect_equal(treatment_row$relative_signal_ymax[[1]], 2.3)
 })
 
 test_that("replicate-aware barplot y-axis includes SE whisker headroom", {
@@ -131,7 +143,11 @@ test_that("replicate-aware barplot y-axis includes SE whisker headroom", {
         treatment = "drug",
         fold_change_ratio = 2,
         effect_estimate_log2 = 1,
-        effect_se_log2 = 1
+        effect_se_log2 = 1,
+        control_fold_change_ymin = 0.5,
+        control_fold_change_ymax = 1.5,
+        treatment_fold_change_ymin = 1.1,
+        treatment_fold_change_ymax = 4
     )
 
     barplot_data <- build_inferential_fold_change_barplot_data(result_tbl)

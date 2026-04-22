@@ -86,6 +86,30 @@ test_that("replicate-aware dataset can read one workbook with many sample sheets
     expect_true(all(sample_df$workbook_path == normalizePath(workbook_path, winslash = "/", mustWork = TRUE)))
     expect_true("normalized_signal" %in% names(sample_df))
     expect_true(any(is.finite(sample_df$normalized_signal)))
+    expect_true(all(c(
+        "normalization_denominator",
+        "normalization_reference_source",
+        "normalization_reference_status",
+        "normalization_reference_trace"
+    ) %in% names(sample_df)))
+    expect_equal(unique(sample_df$normalization_denominator), 500)
+    expect_equal(unique(sample_df$normalization_reference_status), "preferred_partial")
+    expect_equal(unique(sample_df$normalization_reference_names), "Reference Spots")
+    expect_true(any(str_detect(sample_df$normalization_reference_trace, "500")))
+})
+
+test_that("reference spot normalization fails clearly with a nonpositive denominator", {
+    sample_pair_tbl <- tibble(
+        Name = c("Analyte A", "Reference Spots"),
+        Coordinate = c("A3, A4", "J1, J2"),
+        Sname = c("S001, S002", "S003, S004"),
+        signal = c(100, 0)
+    )
+
+    expect_error(
+        compute_raw_sheet_normalized_signal(sample_pair_tbl),
+        "finite positive reference normalization denominator"
+    )
 })
 
 test_that("manifest validation rejects duplicate workbook sheet mappings", {

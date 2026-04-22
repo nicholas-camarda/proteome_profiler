@@ -99,6 +99,7 @@ unlink(write_test_path, force = TRUE)
 manifest_path <- NA_character_
 data_dir <- NA_character_
 resolved_manifest <- NULL
+reference_spot_summary <- NULL
 
 if (config_uses_sample_manifest(example_config)) {
     manifest_path <- resolve_project_path(example_config$sample_manifest, must_exist = TRUE)
@@ -114,6 +115,21 @@ if (config_uses_sample_manifest(example_config)) {
         treatment_var = example_config$treatment_var
     ) %>%
         resolve_manifest_workbook_paths(data_dir = if (is.na(data_dir)) NULL else data_dir)
+
+    analyte_info_df <- read_excel(protocol_workbook_path) %>%
+        mutate(sname_grouping = row_number()) %>%
+        rename(Name = `Analyte/Control`)
+
+    sample_level_df <- build_sample_level_dataset(
+        manifest = resolved_manifest,
+        analyte_info = analyte_info_df,
+        treatment_var = example_config$treatment_var,
+        subgroup_var = example_config$subgroup_var,
+        data_dir = if (is.na(data_dir)) NULL else data_dir
+    )
+
+    reference_spot_summary <- summarize_reference_spot_qc(sample_level_df) %>%
+        summarize_reference_spot_qc_counts()
 } else {
     data_dir <- resolve_project_path(example_config$data_dir, must_exist = TRUE)
 }
@@ -132,6 +148,19 @@ if (!is.na(manifest_path)) {
     message(sprintf("Samples: %s", nrow(resolved_manifest)))
     if ("resolved_sheet_name" %in% names(resolved_manifest)) {
         message(sprintf("Workbook sheets checked: %s", nrow(distinct(resolved_manifest, resolved_workbook_path, resolved_sheet_name))))
+    }
+    message(sprintf(
+        "Reference spot QC: %s/%s samples used complete preferred A1,2/J1,2 raw reference spots; %s partial preferred; %s protocol-table fallback.",
+        reference_spot_summary$n_preferred_complete[[1]],
+        reference_spot_summary$n_samples[[1]],
+        reference_spot_summary$n_preferred_partial[[1]],
+        reference_spot_summary$n_protocol_fallback[[1]]
+    ))
+    if (reference_spot_summary$n_reference_qc_issues[[1]] > 0) {
+        message(sprintf(
+            "Reference spot QC samples requiring review: %s",
+            reference_spot_summary$n_reference_qc_issues[[1]]
+        ))
     }
 } else {
     message(sprintf("Data directory: %s", data_dir))

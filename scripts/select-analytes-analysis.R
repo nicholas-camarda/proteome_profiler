@@ -8,7 +8,7 @@ source(file.path("scripts", "helpers", "array_helper_scripts.R"))
 
 #' @Number1
 #' This script writes explicit selected-analyte views under the per-user
-#' analysis tree in `select_analytes/`. Both legacy and replicate-aware modes
+#' analysis tree in `select_analytes/`. Both exploratory and replicate-aware modes
 #' use `shortlist$analytes` / `selection_analytes` as the source of truth and
 #' write one comparison-scoped folder per selected comparison.
 initialize_runtime_config_from_env(required_env_file = TRUE)
@@ -44,6 +44,7 @@ if (is_replicate_aware_config(example_config)) {
 
     run_index <- read_tsv(run_index_path, show_col_types = FALSE)
     selected_comparisons <- resolve_shortlist_comparisons(run_index, example_config)
+    selected_workbook_summary_rows <- list()
 
     for (row_idx in seq_len(nrow(selected_comparisons))) {
         selected_comparison <- selected_comparisons[row_idx, , drop = FALSE]
@@ -52,6 +53,7 @@ if (is_replicate_aware_config(example_config)) {
         dir.create(output_subdir, recursive = TRUE, showWarnings = FALSE)
         clean_replicate_shortlist_comparison_root(output_subdir)
 
+        selected_summary_rows <- list()
         method_index <- map_dfr(shortlist_methods, function(shortlist_method) {
             comparison_tbl <- read_inferential_comparison_results(
                 inferential_dir = inferential_dir,
@@ -155,6 +157,30 @@ if (is_replicate_aware_config(example_config)) {
             bargraph_index_path <- file.path(method_output_dir, "selected_bargraph_index.tsv")
             write_tsv(bargraph_index, bargraph_index_path)
 
+            selected_summary_rows[[shortlist_method]] <<- qc_tbl %>%
+                mutate(
+                    comparison_slug = comparison_slug,
+                    subgroup = selected_comparison$subgroup[[1]],
+                    control = selected_comparison$control[[1]],
+                    treatment = selected_comparison$treatment[[1]],
+                    selected_results_path = selected_results_path,
+                    selected_qc_path = selected_qc_path,
+                    selected_waterfall_path = selected_waterfall_path,
+                    selected_bargraph_index_path = bargraph_index_path
+                ) %>%
+                left_join(bargraph_index, by = "Name") %>%
+                select(
+                    comparison_slug, subgroup, control, treatment,
+                    analysis_method, analysis_method_label,
+                    Name, Coordinate,
+                    test_status, test_reason, low_signal_flag,
+                    fold_change_ratio, effect_estimate_log2,
+                    raw_p_value, adjusted_p_value, raw_p_lt_alpha, fdr_lt_0_20, fdr_lt_0_25,
+                    plot_status, no_plot_reason,
+                    bargraph_path,
+                    selected_results_path, selected_qc_path, selected_waterfall_path, selected_bargraph_index_path
+                )
+
             tibble(
                 analysis_method = unique(comparison_tbl$analysis_method),
                 analysis_method_label = unique(comparison_tbl$analysis_method_label),
@@ -167,10 +193,18 @@ if (is_replicate_aware_config(example_config)) {
         })
 
         write_tsv(method_index, file.path(output_subdir, "method_index.tsv"))
+        selected_workbook_summary_rows[[comparison_slug]] <- bind_rows(selected_summary_rows)
 
         message(qq(
             "Replicate-aware selected analytes written to @{output_subdir} ",
             "(methods=@{paste(shortlist_methods, collapse=', ')})"
+        ))
+    }
+
+    if (length(selected_workbook_summary_rows) > 0) {
+        invisible(write_selected_analyte_workbook_summary(
+            inferential_dir = inferential_dir,
+            selected_summary_tbl = bind_rows(selected_workbook_summary_rows)
         ))
     }
 } else {

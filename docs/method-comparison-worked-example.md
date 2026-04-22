@@ -30,10 +30,12 @@ That is why multiplicative changes are natural there. Equal fold changes become 
 
 `normalized_t_test`:
 
-- recomputes workbook-style normalized values from the raw sample sheets
-- uses the membrane reference spots as the denominator for each sample
-- runs a two-sample equal-variance t-test on those normalized replicate values
-- reports effect size as `log2(mean(normalized treatment) / mean(normalized control))`
+- recomputes one `normalized_signal` value for each sample and analyte from the raw sample sheets
+- defines `normalized_signal` as averaged duplicate raw analyte signal divided by that sample's reference-spot denominator
+- uses the mean raw signal of preferred Reference Spots pairs `A1,2` and `J1,2` as the denominator when those pairs are present; otherwise it uses available Reference Spots rows from that sample
+- reports each sample's reference-spot denominator, reference rows, and raw reference signals in `input_qc/reference_spot_qc.tsv`
+- runs a two-sample equal-variance t-test on those per-sample `normalized_signal` values
+- reports effect size as `log2(mean(treatment-arm normalized_signal values) / mean(control-arm normalized_signal values))`
 
 So it asks:
 
@@ -49,14 +51,17 @@ There are two different reference concepts in this pipeline.
 
 - These are the vendor protocol reference spots on the membrane.
 - `normalized_t_test` uses them directly.
-- In the current code, the raw-data normalization denominator is computed from the preferred reference spot pairs `A1,2` and `J1,2` when they are available.
+- For each sample, the raw-data normalization denominator is the mean raw signal of preferred Reference Spots pairs `A1,2` and `J1,2` when they are available.
+- If those preferred pairs are not available in a sample sheet, the analysis uses available Reference Spots rows from that sample.
+- The resulting per-sample, per-analyte value is named `normalized_signal`.
 
 2. User-chosen `thresholds$ref_coords` and `thresholds$ref_signal`
 
 - These are not the normalization denominator.
 - They are the low-signal reference panel chosen during `find_ref_thresh.R`.
-- In replicate-aware analysis, they are used to create `low_signal_flag`.
+- In replicate-aware analysis, they are used to create `low_signal_flag` for every configured method.
 - They do not rescale the data before `raw_log2_lm` or `normalized_t_test`.
+- They do not remove analytes before p-value adjustment.
 
 So:
 
@@ -75,6 +80,8 @@ Male normalized values:
 
 - vehicle: `0.0349, 0.0293, 0.0257, 0.0209`
 - aldosterone: `0.0386, 0.0422, 0.0456, 0.0417`
+
+Here "normalized values" means the sample-level `normalized_signal` values for this analyte: each raw CXCL9/MIG signal divided by that same sample's reference-spot denominator.
 
 ### `raw_log2_lm`
 
@@ -190,8 +197,30 @@ So normalization helps some analytes and hurts others. It is not automatically b
 `normalized_t_test`:
 
 - first divides each sample by its membrane reference-spot intensity
-- then compares the normalized replicate values directly
-- effect size is `log2(mean normalized treatment / mean normalized control)`
+- then compares the per-sample `normalized_signal` values directly
+- effect size is `log2(mean(treatment-arm normalized_signal values) / mean(control-arm normalized_signal values))`
+
+## Plot Scales And SE Bars
+
+Replicate-aware barplots always use a linear fold-change-ratio y-axis relative to the control group.
+
+For `normalized_t_test`:
+
+- the control bar is `1`
+- the treatment bar is `mean(treatment-arm normalized_signal values) / mean(control-arm normalized_signal values)`
+- the control whisker is `1 +/- SE(control-arm normalized_signal values) / mean(control-arm normalized_signal values)`
+- the treatment whisker is `treatment fold change +/- SE(treatment-arm normalized_signal values) / mean(control-arm normalized_signal values)`
+- whiskers are symmetric on the plotted linear ratio scale unless the lower bound is clipped at zero
+
+For `raw_log2_lm`:
+
+- the control bar is `1`
+- the treatment bar is `2^(mean log2 treatment - mean log2 control)`
+- the control whisker is `2^(+/- SE(control log2 values))`
+- the treatment whisker is `2^(effect_estimate_log2 +/- SE(treatment log2 values))`
+- whiskers can look asymmetric because the bounds are computed on the log2 scale and converted back to the linear ratio scale
+
+These barplot whiskers are visual group-mean SE bars on the plotted fold-change scale. They are not confidence intervals for the treatment-vs-control contrast, and they are not the same quantity as the standard error used for the treatment-effect test. Waterfall plots use `effect_estimate_log2 +/- effect_se_log2` because waterfalls visualize the method-specific treatment effect estimate.
 
 ## Practical Interpretation
 

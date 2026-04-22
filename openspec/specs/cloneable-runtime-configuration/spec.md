@@ -200,7 +200,10 @@ The README SHALL guide users through copying `.env.example`, editing one `.env` 
 - **WHEN** a lab user with no R config experience reads the quick start
 - **THEN** the primary path SHALL be editing `.env` and following commands, with no R script edits required
 
+#### Scenario: Selected analytes documented as optional follow-up
+- **WHEN** the README describes selected-analyte configuration
+- **THEN** it SHALL state that selected analytes are optional for setup validation and main analysis, and are only required when the user runs the selected-analyte follow-up workflow
+
 #### Scenario: Documentation describes present behavior only
 - **WHEN** user-facing documentation is updated for this runtime workflow
 - **THEN** it SHALL describe the current supported workflow directly without historical comparisons or "now supported" language
-

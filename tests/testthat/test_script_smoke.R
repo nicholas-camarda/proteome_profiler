@@ -6,8 +6,8 @@ expect_script_success <- function(script_result) {
     )
 }
 
-test_that("legacy entry scripts run end-to-end on fixture data", {
-    tmp_dir <- tempfile("legacy-smoke-")
+test_that("exploratory entry scripts run end-to-end on fixture data", {
+    tmp_dir <- tempfile("exploratory-smoke-")
     dir.create(tmp_dir)
 
     fixture_paths <- write_env_fixture(
@@ -46,7 +46,7 @@ test_that("legacy entry scripts run end-to-end on fixture data", {
 })
 
 test_that("manifest-driven exploratory entry scripts run end-to-end on fixture data", {
-    tmp_dir <- tempfile("legacy-manifest-smoke-")
+    tmp_dir <- tempfile("exploratory-manifest-smoke-")
     dir.create(tmp_dir)
 
     fixture_paths <- write_env_fixture(
@@ -133,6 +133,7 @@ test_that("replicate-aware entry scripts run end-to-end on fixture data", {
         file.path(analysis_root, "select_analytes", "male_control_vs_treated", "normalized_t_test", "selected_analyte_qc.tsv"),
         show_col_types = FALSE
     )
+    comparison_workbook_path <- file.path(analysis_root, "inferential_results", "comparison_workbook.xlsx")
 
     expect_true(file.exists(file.path(analysis_root, "threshold_diagnostics", "candidate_low_signal_analytes.tsv")))
     expect_true(file.exists(file.path(analysis_root, "threshold_diagnostics", "region_stats.png")))
@@ -144,6 +145,7 @@ test_that("replicate-aware entry scripts run end-to-end on fixture data", {
     expect_true(file.exists(file.path(analysis_root, "inferential_results", "comparisons", "male_control_vs_treated", "tables", "normalized_t_test_results.tsv")))
     expect_true(file.exists(file.path(analysis_root, "inferential_results", "comparisons", "female_control_vs_treated", "tables", "normalized_t_test_results.tsv")))
     expect_false(file.exists(file.path(analysis_root, "inferential_results", "comparisons", "male_control_vs_treated", "results.tsv")))
+    expect_true(file.exists(comparison_workbook_path))
     expect_true(file.exists(file.path(analysis_root, "select_analytes", "male_control_vs_treated", "method_index.tsv")))
     expect_true(file.exists(file.path(analysis_root, "select_analytes", "male_control_vs_treated", "raw_log2_lm", "selected_results.tsv")))
     expect_true(file.exists(file.path(analysis_root, "select_analytes", "male_control_vs_treated", "raw_log2_lm", "selected_analyte_qc.tsv")))
@@ -177,6 +179,18 @@ test_that("replicate-aware entry scripts run end-to-end on fixture data", {
     expect_true(all(raw_selected_qc$Name %in% c("Analyte A", "Analyte B")))
     expect_true(any(raw_selected_qc$low_signal_flag))
     expect_true(all(c("plot_status", "no_plot_reason") %in% names(normalized_selected_qc)))
+
+    comparison_workbook_sheets <- openxlsx::getSheetNames(comparison_workbook_path)
+    expect_equal(
+        comparison_workbook_sheets[1:5],
+        c("summary", "input_qc_summary", "method_summary", "significance_summary", "selected_analytes_summary")
+    )
+    selected_summary <- readxl::read_excel(comparison_workbook_path, sheet = "selected_analytes_summary")
+    expect_equal(nrow(selected_summary), 8)
+    expect_equal(sort(unique(selected_summary$comparison_slug)), c("female_control_vs_treated", "male_control_vs_treated"))
+    expect_equal(sort(unique(selected_summary$analysis_method)), c("normalized_t_test", "raw_log2_lm"))
+    expect_true(all(c("plot_status", "no_plot_reason", "bargraph_path", "selected_qc_path") %in% names(selected_summary)))
+    expect_true(all(file.exists(as.character(stats::na.omit(selected_summary$selected_qc_path)))))
 })
 
 test_that("selected-analyte follow-up stops clearly when analytes are omitted", {

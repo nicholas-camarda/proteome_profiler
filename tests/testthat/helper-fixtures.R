@@ -90,7 +90,7 @@ create_replicate_manifest <- function(path, data_dir) {
 write_collaborator_style_sheet <- function(wb, sheet_name, analyte_signals) {
     stopifnot(length(analyte_signals) == 4)
 
-    spot_names <- sprintf("A%02d", seq_len(length(analyte_signals) * 2))
+    spot_names <- c("A01", "A02", "A03", "A04", "J01", "J02", "J23", "J24")
     signal_rows <- unlist(map(analyte_signals, ~ c(.x, .x)), use.names = FALSE)
     normalized_rows <- signal_rows / max(signal_rows[is.finite(signal_rows)], na.rm = TRUE)
 
@@ -198,7 +198,17 @@ create_complex_replicate_sample_data <- function() {
         mutate(
             Sname = Coordinate,
             workbook_path = "synthetic",
-            normalized_signal = signal / 100
+            sheet_name = "synthetic",
+            normalized_signal = signal / 100,
+            normalization_denominator = 100,
+            normalization_reference_source = "preferred_raw_spot_A1_2_J1_2",
+            normalization_reference_status = "preferred_complete",
+            normalization_reference_n = 2,
+            normalization_reference_snames = "A1,2|J1,2",
+            normalization_reference_names = "Reference Spots",
+            normalization_reference_coordinates = "A1,2|J1,2",
+            normalization_reference_signals = "100|100",
+            normalization_reference_trace = "A1,2 [A1,2]=100; J1,2 [J1,2]=100"
         )
 }
 
@@ -256,7 +266,7 @@ write_env_fixture <- function(path, runtime_root, cloud_parent = tempfile("cloud
 
     analysis_values <- switch(analysis_name,
         legacy_smoke = list(
-            PROTEOME_PROFILER_MODE = "legacy",
+            PROTEOME_PROFILER_MODE = "exploratory",
             PROTEOME_PROFILER_SLUG = "legacy_smoke",
             PROTEOME_PROFILER_INPUT_DATA_DIR = "data/legacy",
             PROTEOME_PROFILER_GROUP_LEVELS = "vehicle|treated",
@@ -271,7 +281,7 @@ write_env_fixture <- function(path, runtime_root, cloud_parent = tempfile("cloud
             PROTEOME_PROFILER_SHORTLIST_FOLD_CHANGE = "1.5"
         ),
         legacy_manifest_smoke = list(
-            PROTEOME_PROFILER_MODE = "legacy",
+            PROTEOME_PROFILER_MODE = "exploratory",
             PROTEOME_PROFILER_SLUG = "legacy_manifest_smoke",
             PROTEOME_PROFILER_INPUT_MANIFEST = "manifests/replicate.csv",
             PROTEOME_PROFILER_TREATMENT_COLUMN = "treatment",

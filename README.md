@@ -4,7 +4,7 @@ This repository analyzes membrane-based Proteome Profiler arrays from LI-COR spo
 
 It supports two analysis modes:
 
-- `legacy`: exploratory fold-change visualization when there is one workbook per group.
+- `exploratory`: fold-change visualization when there are not enough biological replicates for inferential testing.
 - `replicate`: biological-replicate-aware treatment-versus-control inference using a sample manifest.
 
 Routine users edit one local `.env` file plus their manifest CSV. Users run the R scripts, but do not edit, copy, or create R scripts.
@@ -98,6 +98,14 @@ Run the main analysis:
 Rscript scripts/main.R
 ```
 
+For replicate-aware analyses, open this workbook first:
+
+```text
+PROTEOME_PROFILER_RUNTIME_ROOT/output/<user>/<slug>/inferential_results/comparison_workbook.xlsx
+```
+
+Use `inferential_results/run_index.tsv` when you need exact file paths for every generated table and plot.
+
 Create selected-analyte follow-up plots if `PROTEOME_PROFILER_SHORTLIST_ANALYTES` is set in `.env`:
 
 ```bash
@@ -172,11 +180,17 @@ PROTEOME_PROFILER_MIN_REPS_PER_ARM=2
 PROTEOME_PROFILER_P_ADJUST_METHOD=BH
 PROTEOME_PROFILER_ALPHA=0.05
 PROTEOME_PROFILER_ANALYSIS_METHODS="raw_log2_lm|normalized_t_test"
+```
 
+Optional selected-analyte follow-up settings:
+
+```bash
 PROTEOME_PROFILER_SHORTLIST_COMPARISONS="male_vehicle_vs_aldosterone|female_vehicle_vs_aldosterone"
 PROTEOME_PROFILER_SHORTLIST_METHODS="raw_log2_lm|normalized_t_test"
 PROTEOME_PROFILER_SHORTLIST_ANALYTES="CCL3/CCL4/MIP-1α/β|IL-1α/IL-1F1|IL-10"
 ```
+
+The selected-analyte settings are only required when running `Rscript scripts/select-analytes-analysis.R`.
 
 ### Writing `PROTEOME_PROFILER_SHORTLIST_COMPARISONS`
 
@@ -210,7 +224,7 @@ To select both:
 PROTEOME_PROFILER_SHORTLIST_COMPARISONS="male_vehicle_vs_aldosterone|female_vehicle_vs_aldosterone"
 ```
 
-For a non-stratified or legacy comparison, omit the subgroup prefix:
+For a non-stratified or exploratory comparison, omit the subgroup prefix:
 
 ```bash
 PROTEOME_PROFILER_SHORTLIST_COMPARISONS="vehicle_vs_aldosterone"
@@ -218,10 +232,10 @@ PROTEOME_PROFILER_SHORTLIST_COMPARISONS="vehicle_vs_aldosterone"
 
 If you leave `PROTEOME_PROFILER_SHORTLIST_COMPARISONS` blank and the analysis has exactly one comparison, the selected-analyte script uses that comparison. If the analysis has multiple comparisons, set this field explicitly.
 
-For `legacy` mode without a manifest, use a data directory and group levels:
+For `exploratory` mode without a manifest, use a data directory and group levels:
 
 ```bash
-PROTEOME_PROFILER_MODE=legacy
+PROTEOME_PROFILER_MODE=exploratory
 PROTEOME_PROFILER_INPUT_DATA_DIR=workbooks
 PROTEOME_PROFILER_GROUP_LEVELS="vehicle|treated"
 PROTEOME_PROFILER_COMPARISONS="vehicle=treated"
@@ -302,7 +316,35 @@ inferential_results/
 select_analytes/
 ```
 
-`inferential_results/` is used for replicate-aware analyses. It contains method-specific results tables, comparison workbooks, waterfall plots, and 25-per-page barplots.
+`main_analysis/` is used for exploratory analyses without enough biological replicates for inferential testing. It visualizes raw-signal fold changes after the configured low-signal reference-panel threshold is applied.
+
+`inferential_results/` is used for replicate-aware analyses. Open `comparison_workbook.xlsx` first. Its first sheets summarize the run, input/QC flags, method-level counts, and significance counts before the comparison-specific result sheets.
+
+Detailed replicate-aware artifacts:
+
+```text
+inferential_results/
+  comparison_workbook.xlsx
+  raw_log2_lm_results.xlsx
+  normalized_t_test_results.xlsx
+  methods_overview.md
+  run_index.tsv
+  comparisons/
+    <comparison_slug>/
+      tables/<method>_results.tsv
+      waterfall_plots/<method>/<method>_waterfall*.png
+      barplots/<method>/all_tested/<method>_barplot_all_tested_page_<n>.png
+      barplots/<method>/significant_hits/<threshold>/<method>_barplot_<threshold>_page_<n>.png
+```
+
+Artifact roles:
+
+- `comparison_workbook.xlsx` is the first human-readable replicate-aware result.
+- `input_qc/reference_spot_qc.tsv` lists, for each biological sample, the reference-spot denominator, reference rows, raw reference signals, and QC status used to compute `normalized_signal` for `normalized_t_test`.
+- `<method>_results.xlsx` files contain full detailed result tables for one method.
+- `methods_overview.md` explains the method estimands, fold-change definitions, and significance flags.
+- `run_index.tsv` is the machine-readable path and provenance index.
+- `comparisons/<comparison_slug>/` contains comparison-scoped method tables and plots.
 
 `select_analytes/` is created by `scripts/select-analytes-analysis.R` when selected analytes are configured.
 
@@ -310,7 +352,13 @@ select_analytes/
 
 ### With Biological Replicates
 
-Proteome Profiler array signals are processed in R by averaging duplicate membrane spots within each sample, mapping spot coordinates to analytes with a protocol-derived workbook, and performing per-analyte treatment-versus-control inference within each analysis stratum. The `raw_log2_lm` method fits `log2(signal) ~ treatment`, so the treatment coefficient estimates the difference in mean log2 raw signal between arms and is reported as both a log2 effect and `2^(coefficient)` fold change. The `normalized_t_test` method recomputes workbook-style normalized replicate values from raw signals and applies a two-sided equal-variance t-test to those normalized values, reporting ratio-scale fold change only when both group means are positive. Raw p-values are adjusted within each comparison family using the Benjamini-Hochberg method.
+Proteome Profiler array signals are processed in R by averaging duplicate membrane spots within each sample, mapping spot coordinates to analytes with a protocol-derived workbook, and performing per-analyte treatment-versus-control inference within each analysis stratum. The `raw_log2_lm` method fits `log2(signal) ~ treatment`, where `signal` is the averaged duplicate raw analyte signal for one biological sample. The treatment coefficient estimates the difference in mean log2 raw signal between arms and is reported as both a log2 effect and `2^(coefficient)` fold change.
+
+The `normalized_t_test` method recomputes a per-sample, per-analyte `normalized_signal` from raw signals before testing. For one biological sample and one analyte, `normalized_signal = averaged duplicate raw analyte signal / sample reference-spot denominator`. The reference-spot denominator is the mean raw signal of that sample's preferred Reference Spots pairs `A1,2` and `J1,2` when present; if those preferred pairs are unavailable, the analysis uses available Reference Spots rows from that sample. The analysis records the exact reference rows and raw reference signals used for each sample in `input_qc/reference_spot_qc.tsv`, and `scripts/check_setup.R` reports the reference-spot QC counts before analysis. The method applies a two-sided equal-variance t-test to those per-sample `normalized_signal` values and reports ratio-scale fold change only when both group means are positive. Raw p-values are adjusted within each comparison family using the Benjamini-Hochberg method.
+
+The low-signal threshold from `PROTEOME_PROFILER_REF_SIGNAL` is separate from reference-spot normalization. In replicate-aware results it creates `low_signal_flag` for every configured method, including both `raw_log2_lm` and `normalized_t_test`; it does not rescale values and does not remove analytes before p-value adjustment.
+
+Replicate-aware barplots use a linear fold-change-ratio y-axis relative to the control group. For `normalized_t_test`, the control bar is `1`, the treatment bar is `mean(treatment-arm normalized_signal values) / mean(control-arm normalized_signal values)`, the control whisker is `1 +/- SE(control-arm normalized_signal values) / mean(control-arm normalized_signal values)`, and the treatment whisker is `treatment fold change +/- SE(treatment-arm normalized_signal values) / mean(control-arm normalized_signal values)`. For `raw_log2_lm`, bars are converted from log2-scale group means to the linear fold-change-ratio scale; these whiskers can look asymmetric after conversion back from log2. Barplot whiskers are visual group-mean SE bars, not confidence intervals for the treatment-vs-control contrast. Waterfall whiskers instead show `+/- 1 SE` of the method-specific treatment effect estimate.
 
 ### Without Biological Replicates
 
@@ -324,4 +372,4 @@ Run:
 Rscript scripts/check_setup.R
 ```
 
-This command reports missing packages, missing files, invalid manifest columns, missing workbook sheets, and output-folder problems before the analysis runs.
+This command reports missing packages, missing files, invalid manifest columns, missing workbook sheets, reference-spot denominator checks, and output-folder problems before the analysis runs.
