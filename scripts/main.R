@@ -194,8 +194,14 @@ if (analysis_mode == "replicate") {
         detected_cores <- 1
     }
     num_cores <- max(1, min(detected_cores - 1, length(my_main_threshold)))
-    message(qq("Switching to multisession mode. Using @{num_cores} cores..."))
-    plan(multisession, workers = num_cores)
+    use_parallel <- num_cores > 1
+    if (use_parallel) {
+        message(qq("Switching to multisession mode. Using @{num_cores} cores..."))
+        plan(multisession, workers = num_cores)
+        on.exit(plan(sequential), add = TRUE)
+    } else {
+        message("Using sequential mode.")
+    }
 
     total_iterations <- length(my_ref_thresh_to_filter) * length(my_main_threshold)
 
@@ -209,7 +215,7 @@ if (analysis_mode == "replicate") {
 
         p_inner <- progressor(steps = total_iterations)
         for (i in seq_along(my_ref_thresh_to_filter)) {
-            furrr::future_walk(.x = seq_along(my_main_threshold), .f = function(j, p_inner) {
+            run_threshold_slice <- function(j, p_inner) {
                 # Each worker writes one ref-threshold / fold-change-threshold slice
                 # of the analysis tree under `main_analysis/`.
                 p_inner(qq("Processing ref thresh @{my_ref_thresh_to_filter[i]} and main thresh @{my_main_threshold[j]}"))
@@ -222,8 +228,21 @@ if (analysis_mode == "replicate") {
                     comparisons = my_comparisons,
                     groups_per_page = my_groups_per_page
                 )
-            }, p_inner = p_inner, .options = furrr::furrr_options(seed = TRUE))
+            }
+
+            if (use_parallel) {
+                furrr::future_walk(
+                    .x = seq_along(my_main_threshold),
+                    .f = run_threshold_slice,
+                    p_inner = p_inner,
+                    .options = furrr::furrr_options(seed = TRUE)
+                )
+            } else {
+                purrr::walk(seq_along(my_main_threshold), run_threshold_slice, p_inner = p_inner)
+            }
         }
     })
-    plan(sequential)
+    if (use_parallel) {
+        plan(sequential)
+    }
 }

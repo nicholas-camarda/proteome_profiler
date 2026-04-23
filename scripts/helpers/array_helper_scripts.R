@@ -809,7 +809,11 @@ save_list_bar_plots <- function(barplots_obj, barplot_dat, output_path, toggle =
             available_workers <- 1
         }
         num_workers <- max(1, min(4, available_workers, length(idx_bar_lst)))
-        plan(multisession, workers = num_workers)
+        use_parallel <- num_workers > 1
+        if (use_parallel) {
+            plan(multisession, workers = num_workers)
+            on.exit(plan(sequential), add = TRUE)
+        }
 
         #' @note convenience function for the parallelization
         future_walk_pbar <- function(sub_bar_x, toggle) { #  p_bar,
@@ -852,17 +856,21 @@ save_list_bar_plots <- function(barplots_obj, barplot_dat, output_path, toggle =
         with_progress({
             # Initialize progress
             # p_bar <- progressor(steps = length(idx_bar_lst))
-            furrr::future_walk(
-                .x = as.list(idx_bar_lst), .f = future_walk_pbar,
-                # p_bar = p_bar,
-                toggle = toggle,
-                .options = furrr::furrr_options(seed = TRUE)
-            )
+            if (use_parallel) {
+                furrr::future_walk(
+                    .x = as.list(idx_bar_lst), .f = future_walk_pbar,
+                    # p_bar = p_bar,
+                    toggle = toggle,
+                    .options = furrr::furrr_options(seed = TRUE)
+                )
+            } else {
+                purrr::walk(as.list(idx_bar_lst), future_walk_pbar, toggle = toggle)
+            }
         })
 
-        # set the plan back to sequential
-        # message("Switched back to sequential mode.")
-        # plan(sequential)
+        if (use_parallel) {
+            plan(sequential)
+        }
     } else {
         total_pages <- length(barplots_obj)
         for (i in seq_len(total_pages)) {

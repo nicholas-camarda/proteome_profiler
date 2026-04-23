@@ -4,7 +4,7 @@ This folder holds repo-local output examples that can be embedded directly in th
 
 ## Embedded Output Examples
 
-Replicate-aware examples use synthetic values so collaborator data are not embedded in the repository docs. Exploratory examples show rendered outputs from the no-biological-replicate workflow. These are example outputs, not defaults for a new project.
+These are local rendered example outputs from the current workspace. They are example outputs, not defaults for a new project.
 
 ## Replicate-Aware Examples
 
