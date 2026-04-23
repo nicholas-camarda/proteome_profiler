@@ -38,7 +38,8 @@ check_command(
     c("-c", shQuote("import pandas, tabula, openpyxl")),
     paste(
         "Missing Python protocol-extraction dependency.",
-        "Install Python requirements with: python3 -m pip install -r requirements.txt"
+        "Install Python requirements with: python3 -m venv .venv && source .venv/bin/activate && python -m pip install -r requirements.txt",
+        "If .venv already exists, activate it with: source .venv/bin/activate"
     )
 )
 check_command(

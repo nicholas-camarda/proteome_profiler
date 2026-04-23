@@ -1,11 +1,11 @@
 test_that("find_filter_thresh uses selected low-signal coordinates as the cutoff reference", {
-    tmp_dir <- tempfile("legacy-thresh-")
+    tmp_dir <- tempfile("exploratory-thresh-")
     dir.create(tmp_dir)
     protocol_path <- file.path(tmp_dir, "protocol.xlsx")
     data_dir <- file.path(tmp_dir, "data")
 
     write_protocol_fixture(protocol_path)
-    create_legacy_fixture_dir(data_dir)
+    create_exploratory_fixture_dir(data_dir)
 
     analyte_info <- readxl::read_excel(protocol_path) %>%
         mutate(sname_grouping = row_number()) %>%
@@ -29,13 +29,13 @@ test_that("find_filter_thresh uses selected low-signal coordinates as the cutoff
 })
 
 test_that("make_wf_data keeps pairwise filtering local to the requested comparison", {
-    tmp_dir <- tempfile("legacy-wf-")
+    tmp_dir <- tempfile("exploratory-wf-")
     dir.create(tmp_dir)
     protocol_path <- file.path(tmp_dir, "protocol.xlsx")
     data_dir <- file.path(tmp_dir, "data")
 
     write_protocol_fixture(protocol_path)
-    create_legacy_fixture_dir(data_dir)
+    create_exploratory_fixture_dir(data_dir)
 
     analyte_info <- readxl::read_excel(protocol_path) %>%
         mutate(sname_grouping = row_number()) %>%
@@ -65,14 +65,14 @@ test_that("make_wf_data keeps pairwise filtering local to the requested comparis
 })
 
 test_that("make_graphs writes waterfall and threshold-hit artifacts to the expected tree", {
-    tmp_dir <- tempfile("legacy-graphs-")
+    tmp_dir <- tempfile("exploratory-graphs-")
     dir.create(tmp_dir)
     protocol_path <- file.path(tmp_dir, "protocol.xlsx")
     data_dir <- file.path(tmp_dir, "data")
     output_dir <- file.path(tmp_dir, "outputs")
 
     write_protocol_fixture(protocol_path)
-    create_legacy_fixture_dir(data_dir)
+    create_exploratory_fixture_dir(data_dir)
 
     analyte_info <- readxl::read_excel(protocol_path) %>%
         mutate(sname_grouping = row_number()) %>%

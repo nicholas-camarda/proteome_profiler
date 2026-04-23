@@ -38,6 +38,8 @@ Source output types: `select_analytes/<comparison_slug>/<method>/selected_result
 
 For the broader explanation of what each output means and where it is generated, see the root [README.md](../README.md).
 
+Before sharing replicate-aware results, use the [artifact review checklist](artifact-review-checklist.md).
+
 ## Exploratory Examples
 
 ### Threshold diagnostics
@@ -69,3 +71,4 @@ Selected-analyte bargraphs are written as one PNG per configured analyte under `
 ## Method Notes
 
 - [Worked Example: `raw_log2_lm` vs `normalized_t_test`](method-comparison-worked-example.md)
+- [Artifact Review Checklist](artifact-review-checklist.md)

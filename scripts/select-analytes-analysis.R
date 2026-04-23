@@ -274,7 +274,7 @@ if (is_replicate_aware_config(example_config)) {
         }
     }))
 
-    selected_pairs <- resolve_legacy_select_comparisons(example_config)
+    selected_pairs <- resolve_exploratory_select_comparisons(example_config)
     for (pair_idx in seq_len(nrow(selected_pairs))) {
         selected_pair <- selected_pairs[pair_idx, , drop = FALSE]
         comparison_slug <- selected_pair$comparison_slug[[1]]
@@ -341,7 +341,7 @@ if (is_replicate_aware_config(example_config)) {
             )
         }
 
-        barplot_data <- build_legacy_selected_fold_change_barplot_data(
+        barplot_data <- build_exploratory_selected_fold_change_barplot_data(
             selected_dat = selected_dat,
             mark_threshold_hits = FALSE,
             threshold = sor_thresh
@@ -353,6 +353,6 @@ if (is_replicate_aware_config(example_config)) {
         )
         write_tsv(bargraph_index, file.path(output_subdir, "selected_bargraph_index.tsv"))
 
-        message(qq("Legacy selected analytes written to @{output_subdir}"))
+        message(qq("Exploratory selected analytes written to @{output_subdir}"))
     }
 }

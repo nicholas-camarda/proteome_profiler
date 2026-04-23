@@ -164,12 +164,12 @@ clean_inferential_comparison_dir <- function(comparison_dir, remove_organized_di
         pattern = "^(results|raw_log2_lm_results|normalized_t_test_results|waterfall|raw_log2_lm_waterfall|normalized_t_test_waterfall|raw_log2_lm_barplot|normalized_t_test_barplot).*\\.(tsv|png)$",
         full.names = TRUE
     )
-    stale_legacy_dirs <- list.files(
+    stale_exploratory_dirs <- list.files(
         comparison_dir,
         pattern = "^(raw_log2_lm|normalized_t_test)_bargraphs_",
         full.names = TRUE
     )
-    stale_paths <- c(stale_flat_files, stale_legacy_dirs)
+    stale_paths <- c(stale_flat_files, stale_exploratory_dirs)
     if (remove_organized_dirs) {
         stale_paths <- c(stale_paths, file.path(comparison_dir, c("tables", "waterfall_plots", "barplots")))
     }

@@ -4,6 +4,7 @@
 .codex/
 .github/
 .pytest_cache/
+.venv/
 Rplots.pdf
 tests/test_output/
 

@@ -49,7 +49,7 @@ write_licor_workbook <- function(path, analyte_signals) {
     saveWorkbook(wb, path, overwrite = TRUE)
 }
 
-create_legacy_fixture_dir <- function(root_dir, duplicate_group = FALSE) {
+create_exploratory_fixture_dir <- function(root_dir, duplicate_group = FALSE) {
     dir.create(root_dir, recursive = TRUE, showWarnings = FALSE)
     write_licor_workbook(file.path(root_dir, "vehicle - mouse1.xlsx"), c(100, 90, 500, 10))
     write_licor_workbook(file.path(root_dir, "treated - mouse1.xlsx"), c(200, 45, 500, 10))
@@ -234,13 +234,13 @@ write_env_lines <- function(path, values) {
     writeLines(stats::na.omit(lines), path)
 }
 
-write_env_fixture <- function(path, runtime_root, cloud_parent = tempfile("cloud-root-"), analysis_name = "legacy_smoke", include_selected_analytes = TRUE) {
+write_env_fixture <- function(path, runtime_root, cloud_parent = tempfile("cloud-root-"), analysis_name = "exploratory_smoke", include_selected_analytes = TRUE) {
     dir.create(runtime_root, recursive = TRUE, showWarnings = FALSE)
     dir.create(cloud_parent, recursive = TRUE, showWarnings = FALSE)
 
     protocol_path <- file.path(runtime_root, "output", "protocol.xlsx")
     protocol_pdf_path <- file.path(runtime_root, "protocols", "mock_protocol.pdf")
-    legacy_data_dir <- file.path(runtime_root, "data", "legacy")
+    exploratory_data_dir <- file.path(runtime_root, "data", "exploratory")
     replicate_data_dir <- file.path(runtime_root, "data", "replicate")
     replicate_manifest_path <- file.path(runtime_root, "manifests", "replicate.csv")
 
@@ -250,7 +250,7 @@ write_env_fixture <- function(path, runtime_root, cloud_parent = tempfile("cloud
 
     write_protocol_fixture(protocol_path)
     writeLines("Mock protocol PDF.", protocol_pdf_path)
-    create_legacy_fixture_dir(legacy_data_dir)
+    create_exploratory_fixture_dir(exploratory_data_dir)
     create_replicate_fixture_dir(replicate_data_dir)
     create_replicate_manifest(replicate_manifest_path, replicate_data_dir)
 
@@ -265,10 +265,10 @@ write_env_fixture <- function(path, runtime_root, cloud_parent = tempfile("cloud
     )
 
     analysis_values <- switch(analysis_name,
-        legacy_smoke = list(
+        exploratory_smoke = list(
             PROTEOME_PROFILER_MODE = "exploratory",
-            PROTEOME_PROFILER_SLUG = "legacy_smoke",
-            PROTEOME_PROFILER_INPUT_DATA_DIR = "data/legacy",
+            PROTEOME_PROFILER_SLUG = "exploratory_smoke",
+            PROTEOME_PROFILER_INPUT_DATA_DIR = "data/exploratory",
             PROTEOME_PROFILER_GROUP_LEVELS = "vehicle|treated",
             PROTEOME_PROFILER_TREATMENT_COLUMN = "treatment",
             PROTEOME_PROFILER_COMPARISONS = "vehicle=treated",
@@ -280,9 +280,9 @@ write_env_fixture <- function(path, runtime_root, cloud_parent = tempfile("cloud
             PROTEOME_PROFILER_SHORTLIST_TREATMENT = "treated",
             PROTEOME_PROFILER_SHORTLIST_FOLD_CHANGE = "1.5"
         ),
-        legacy_manifest_smoke = list(
+        exploratory_manifest_smoke = list(
             PROTEOME_PROFILER_MODE = "exploratory",
-            PROTEOME_PROFILER_SLUG = "legacy_manifest_smoke",
+            PROTEOME_PROFILER_SLUG = "exploratory_manifest_smoke",
             PROTEOME_PROFILER_INPUT_MANIFEST = "manifests/replicate.csv",
             PROTEOME_PROFILER_TREATMENT_COLUMN = "treatment",
             PROTEOME_PROFILER_COMPARISONS = "control=treated",
@@ -326,7 +326,7 @@ write_env_fixture <- function(path, runtime_root, cloud_parent = tempfile("cloud
         env_path = path,
         config_path = path,
         runtime_root = runtime_root,
-        legacy_data_dir = legacy_data_dir,
+        exploratory_data_dir = exploratory_data_dir,
         replicate_data_dir = replicate_data_dir,
         replicate_manifest_path = replicate_manifest_path
     ))

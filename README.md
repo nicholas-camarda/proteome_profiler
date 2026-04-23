@@ -11,6 +11,8 @@ Routine users edit one local `.env` file plus their manifest CSV. Users run the 
 
 Rendered output examples are described in [docs/README.md](docs/README.md).
 
+Before sharing collaborator-facing results, use the [artifact review checklist](docs/artifact-review-checklist.md).
+
 ## Quick Start
 
 ### 1. Open Terminal
@@ -34,11 +36,15 @@ Install the R packages:
 Rscript scripts/install_packages.R
 ```
 
-Install the Python packages used for protocol-table extraction:
+Create a local Python environment and install the Python packages used for protocol-table extraction:
 
 ```bash
-python3 -m pip install -r requirements.txt
+python3 -m venv .venv
+source .venv/bin/activate
+python -m pip install -r requirements.txt
 ```
+
+Run the remaining commands from the same Terminal window so this `.venv` stays active. If you open a new Terminal window later, run `source .venv/bin/activate` again before running setup or analysis scripts.
 
 The protocol PDF extractor uses `tabula-py`, which requires Java. Confirm Java is available:
 

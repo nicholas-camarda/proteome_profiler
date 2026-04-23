@@ -278,13 +278,13 @@ test_that("selected analytes are optional for main analysis but required for sel
     )
 })
 
-test_that("legacy select comparisons resolve to comparison-scoped slugs", {
+test_that("exploratory select comparisons resolve to comparison-scoped slugs", {
     config <- list(
         comparisons = list(vehicle = c("sorafenib", "sor + dox")),
         selection_comparison_slugs = c("vehicle_vs_sorafenib", "vehicle_vs_sor_dox")
     )
 
-    selected_pairs <- resolve_legacy_select_comparisons(config)
+    selected_pairs <- resolve_exploratory_select_comparisons(config)
 
     expect_equal(
         selected_pairs$comparison_slug,

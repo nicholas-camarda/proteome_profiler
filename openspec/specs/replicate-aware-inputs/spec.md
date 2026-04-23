@@ -15,15 +15,15 @@ The system SHALL support a manifest-driven input mode where each LI-COR workbook
 - **THEN** the pipeline SHALL stop with a direct validation error naming the missing fields
 
 ### Requirement: Analysis mode SHALL be selected explicitly from configuration
-The system SHALL choose between legacy exploratory mode and replicate-aware inferential mode from the run configuration rather than from filename heuristics alone.
+The system SHALL choose between exploratory mode and replicate-aware inferential mode from the run configuration rather than from filename heuristics alone.
 
 #### Scenario: Manifest-driven replicate-aware mode
 - **WHEN** the run configuration includes a sample manifest
 - **THEN** the pipeline SHALL enter replicate-aware mode and use the manifest as the experimental-design source of truth
 
-#### Scenario: Legacy exploratory mode
+#### Scenario: Exploratory mode
 - **WHEN** the run configuration does not include a sample manifest and the input contains exactly one workbook per configured group
-- **THEN** the pipeline SHALL enter the legacy exploratory mode
+- **THEN** the pipeline SHALL enter exploratory mode
 
 ### Requirement: The manifest SHALL be the source of truth for experimental design
 In replicate-aware mode, the manifest SHALL define sample identity and analysis-group metadata. Filenames MAY be human-readable, but the pipeline MUST NOT infer treatment, sex, or replicate identity from filenames when a manifest is present.
@@ -61,8 +61,8 @@ The system SHALL average the duplicate membrane spots within each workbook to ob
 ### Requirement: Ambiguous replicate layouts MUST be rejected
 The system MUST fail fast when multiple workbooks would be merged into the same analysis group without explicit sample metadata.
 
-#### Scenario: Multiple files share the same legacy group label
-- **WHEN** the legacy import path sees more than one workbook for a group label such as `vehicle`
+#### Scenario: Multiple files share the same exploratory group label
+- **WHEN** the exploratory import path sees more than one workbook for a group label such as `vehicle`
 - **THEN** the pipeline SHALL stop with an error explaining that biological replicates require explicit replicate-aware metadata
 
 ### Requirement: Non-replicate exploratory analyses SHALL remain supported
@@ -75,4 +75,3 @@ The system SHALL continue to support the current one-workbook-per-group explorat
 #### Scenario: Exploratory run output semantics
 - **WHEN** a one-workbook-per-group exploratory analysis completes
 - **THEN** the pipeline SHALL keep its outputs labeled as exploratory rather than inferentially significant
-

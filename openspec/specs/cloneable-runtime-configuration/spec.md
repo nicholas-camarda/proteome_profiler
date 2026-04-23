@@ -27,7 +27,7 @@ The system SHALL load the active run configuration from a repo-root `.env` file 
 - **THEN** the pipeline SHALL parse multiple selected comparison slugs using `|` as the delimiter and SHALL document replicate-aware slugs as `<subgroup value>_<control label>_vs_<treatment label>`
 
 #### Scenario: Non-stratified selected-analyte comparison slugs configured
-- **WHEN** `.env` defines `PROTEOME_PROFILER_SHORTLIST_COMPARISONS` for a non-stratified or legacy analysis
+- **WHEN** `.env` defines `PROTEOME_PROFILER_SHORTLIST_COMPARISONS` for a non-stratified or exploratory analysis
 - **THEN** the pipeline SHALL document and validate slugs as `<control label>_vs_<treatment label>`
 
 #### Scenario: Invalid selected-analyte comparison slug

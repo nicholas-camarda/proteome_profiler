@@ -1,11 +1,11 @@
-test_that("legacy import averages duplicate spots into one wide analyte row per group", {
-    tmp_dir <- tempfile("legacy-valid-")
+test_that("exploratory import averages duplicate spots into one wide analyte row per group", {
+    tmp_dir <- tempfile("exploratory-valid-")
     dir.create(tmp_dir)
     protocol_path <- file.path(tmp_dir, "protocol.xlsx")
     data_dir <- file.path(tmp_dir, "data")
 
     write_protocol_fixture(protocol_path)
-    create_legacy_fixture_dir(data_dir)
+    create_exploratory_fixture_dir(data_dir)
 
     analyte_info <- readxl::read_excel(protocol_path) %>%
         mutate(sname_grouping = row_number()) %>%
@@ -24,14 +24,14 @@ test_that("legacy import averages duplicate spots into one wide analyte row per 
     expect_equal(out$treated[out$Name == "Analyte A"], 200)
 })
 
-test_that("legacy import rejects duplicate group files", {
-    tmp_dir <- tempfile("legacy-dup-")
+test_that("exploratory import rejects duplicate group files", {
+    tmp_dir <- tempfile("exploratory-dup-")
     dir.create(tmp_dir)
     protocol_path <- file.path(tmp_dir, "protocol.xlsx")
     data_dir <- file.path(tmp_dir, "data")
 
     write_protocol_fixture(protocol_path)
-    create_legacy_fixture_dir(data_dir, duplicate_group = TRUE)
+    create_exploratory_fixture_dir(data_dir, duplicate_group = TRUE)
 
     analyte_info <- readxl::read_excel(protocol_path) %>%
         mutate(sname_grouping = row_number()) %>%

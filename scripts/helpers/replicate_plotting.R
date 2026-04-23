@@ -439,7 +439,7 @@ sanitize_selected_analyte_filename <- function(analyte_name) {
 #'
 #' @return Tibble in the shape expected by
 #'   `plot_inferential_fold_change_barplot_pages()`.
-build_legacy_selected_fold_change_barplot_data <- function(selected_dat, mark_threshold_hits = FALSE, threshold = NULL) {
+build_exploratory_selected_fold_change_barplot_data <- function(selected_dat, mark_threshold_hits = FALSE, threshold = NULL) {
     if (nrow(selected_dat) == 0) {
         return(tibble())
     }
@@ -570,12 +570,12 @@ write_threshold_bargraph_set <- function(result_tbl, output_dir, filename_prefix
         pattern = sprintf("^%s_barplot_.*_page_[0-9]+\\.png$", filename_prefix),
         full.names = TRUE
     )
-    stale_legacy_dirs <- list.files(
+    stale_exploratory_dirs <- list.files(
         output_dir,
         pattern = sprintf("^%s_bargraphs_", filename_prefix),
         full.names = TRUE
     )
-    invisible(walk(c(stale_flat_paths, stale_legacy_dirs), function(path) {
+    invisible(walk(c(stale_flat_paths, stale_exploratory_dirs), function(path) {
         if (file.exists(path) || dir.exists(path)) {
             unlink(path, recursive = TRUE, force = TRUE)
         }

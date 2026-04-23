@@ -70,7 +70,7 @@ validate_selected_analyte_names <- function(selected_names, available_names) {
 
 #' Resolve exploratory select-analytes comparisons into control/treatment pairs
 #'
-#' Legacy configs can define many exploratory comparisons, but select-analytes
+#' Exploratory configs can define many comparisons, but select-analytes
 #' writes one focused output folder per selected pair. If explicit comparison
 #' slugs are configured, they are matched against all configured pairwise
 #' comparison slugs; otherwise the exploratory `selection_control` and
@@ -79,10 +79,10 @@ validate_selected_analyte_names <- function(selected_names, available_names) {
 #' @param example_config Named analysis config returned by `get_analysis_config()`.
 #'
 #' @return Tibble with `comparison_slug`, `control`, and `treatment` columns.
-resolve_legacy_select_comparisons <- function(example_config) {
+resolve_exploratory_select_comparisons <- function(example_config) {
     configured_comparisons <- example_config$comparisons
     if (is.null(configured_comparisons) || length(configured_comparisons) == 0) {
-        stop("Legacy select-analytes requires at least one configured comparison.")
+        stop("Exploratory select-analytes requires at least one configured comparison.")
     }
 
     all_pairs <- imap_dfr(configured_comparisons, function(treatments, control_label) {
@@ -117,7 +117,7 @@ resolve_legacy_select_comparisons <- function(example_config) {
             )
         if (nrow(selected_pairs) == 0) {
             stop(sprintf(
-                "Legacy select comparison '%s' vs '%s' was not found. Available slugs: %s",
+                "Exploratory select comparison '%s' vs '%s' was not found. Available slugs: %s",
                 example_config$selection_control,
                 paste(example_config$selection_group, collapse = ", "),
                 paste(all_pairs$comparison_slug, collapse = ", ")

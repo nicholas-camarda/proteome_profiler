@@ -400,9 +400,9 @@ get_analysis_entries <- function() {
         return(analyses)
     }
 
-    legacy_examples <- proteome_profiler_config$examples
-    if (!is.null(legacy_examples)) {
-        return(legacy_examples)
+    configured_examples <- proteome_profiler_config$examples
+    if (!is.null(configured_examples)) {
+        return(configured_examples)
     }
 
     stop("Expected `proteome_profiler_config$analyses` to be defined.")
