@@ -801,10 +801,15 @@ save_list_bar_plots <- function(barplots_obj, barplot_dat, output_path, toggle =
         # message("Found bar list, saving individual analyte bar plots...")
         idx_bar_lst <- seq_along(barplots_obj)
 
-        # Dynamic number of workers
-        # num_cores <- min(parallel::detectCores() - 1, length(idx_bar_lst))
-        # message(qq("Switching to multisession mode. Using @{num_cores} cores..."))
-        plan(multisession, workers = 4)
+        available_workers <- suppressWarnings(as.integer(future::availableCores()[[1]]))
+        if (!is.finite(available_workers)) {
+            available_workers <- parallel::detectCores()
+        }
+        if (!is.finite(available_workers)) {
+            available_workers <- 1
+        }
+        num_workers <- max(1, min(4, available_workers, length(idx_bar_lst)))
+        plan(multisession, workers = num_workers)
 
         #' @note convenience function for the parallelization
         future_walk_pbar <- function(sub_bar_x, toggle) { #  p_bar,

@@ -16,6 +16,7 @@ proteome_env_names <- c(
     "PROTEOME_PROFILER_REF_COORDS",
     "PROTEOME_PROFILER_REF_SIGNAL",
     "PROTEOME_PROFILER_ANALYSIS_METHODS",
+    "PROTEOME_PROFILER_SHORTLIST_COORDS",
     "PROTEOME_PROFILER_SHORTLIST_ANALYTES"
 )
 
@@ -122,7 +123,7 @@ test_that("grouped user-facing config shape is normalized into internal fields",
         ),
         shortlist = list(
             comparison = "male_control_vs_treated",
-            analytes = c("Analyte A", "Analyte B")
+            coords = c("A1,2", "A3,4")
         )
     )
 
@@ -141,7 +142,7 @@ test_that("grouped user-facing config shape is normalized into internal fields",
         "male_control_vs_treated"
     )
     expect_equal(normalized_config$selection_comparison_slug, "male_control_vs_treated")
-    expect_equal(normalized_config$selection_analytes, c("Analyte A", "Analyte B"))
+    expect_equal(normalized_config$selection_coords, c("A1,2", "A3,4"))
     expect_equal(normalized_config$p_adjust_method, "BH")
 })
 
@@ -200,7 +201,7 @@ test_that(".env run sheet parses into the internal analysis config", {
         "PROTEOME_PROFILER_REF_COORDS=A3,4",
         "PROTEOME_PROFILER_REF_SIGNAL=150",
         "PROTEOME_PROFILER_ANALYSIS_METHODS=raw_log2_lm|normalized_t_test",
-        "PROTEOME_PROFILER_SHORTLIST_ANALYTES=Analyte A|Analyte B"
+        "PROTEOME_PROFILER_SHORTLIST_COORDS=A1,2|A3,4"
     ), env_path)
     Sys.setenv(PROTEOME_PROFILER_ENV_FILE = env_path)
 
@@ -214,7 +215,7 @@ test_that(".env run sheet parses into the internal analysis config", {
     expect_equal(normalized_config$comparisons, list(control = "treated"))
     expect_equal(normalized_config$ref_thresh_to_filter, 150)
     expect_equal(normalized_config$analysis_methods, c("raw_log2_lm", "normalized_t_test"))
-    expect_equal(normalized_config$selection_analytes, c("Analyte A", "Analyte B"))
+    expect_equal(normalized_config$selection_coords, c("A1,2", "A3,4"))
 })
 
 test_that("explicit process environment values override .env file values", {
@@ -268,13 +269,72 @@ test_that("selected analytes can be omitted from .env for main analysis config",
     normalized_config <- get_analysis_config("no_selected")
 
     expect_no_error(validate_analysis_config(normalized_config))
-    expect_null(normalized_config$selection_analytes)
+    expect_null(normalized_config$selection_coords)
 })
 
-test_that("selected analytes are optional for main analysis but required for select-analytes", {
+test_that("selected analyte coordinates are optional for main analysis but required for select-analytes", {
     expect_error(
-        get_selected_analyte_names(list()),
+        get_selected_analyte_coordinates(list()),
         "optional for setup validation and main analysis"
+    )
+})
+
+test_that("selected analyte coordinates normalize common user-entered forms", {
+    available_tbl <- tibble::tibble(
+        Name = c("Analyte A", "Analyte B"),
+        Coordinate = c("A1,2", "A3,4")
+    )
+
+    expect_equal(
+        compact_coordinate_text(c("A1, A2", "A1,2", "A1,A2", "a1, 2")),
+        rep("A1,2", 4)
+    )
+
+    selected_tbl <- filter_selected_analyte_coordinates(
+        available_tbl,
+        selected_coords = c("A3,A4", "A1, 2")
+    )
+
+    expect_equal(selected_tbl$Name, c("Analyte B", "Analyte A"))
+    expect_equal(selected_tbl$Coordinate, c("A3,4", "A1,2"))
+})
+
+test_that("missing selected analyte coordinates fail with coordinate suggestions", {
+    available_tbl <- tibble::tibble(
+        Name = c("Analyte A", "Analyte B"),
+        Coordinate = c("A1,2", "A3,4")
+    )
+
+    expect_error(
+        validate_selected_analyte_coordinates(c("A9,10"), available_tbl),
+        "A9,10 \\(closest available: A1,2, A3,4\\)"
+    )
+})
+
+test_that("deprecated selected-analyte name config fails clearly", {
+    restore_env <- restore_proteome_env_later()
+    on.exit(restore_env(), add = TRUE)
+
+    env_path <- tempfile(".env-")
+    writeLines(c(
+        "PROTEOME_PROFILER_ANALYSIS=deprecated_selected_names",
+        "PROTEOME_PROFILER_MODE=replicate",
+        "PROTEOME_PROFILER_USER=tester",
+        "PROTEOME_PROFILER_SLUG=deprecated_selected_names",
+        "PROTEOME_PROFILER_RUNTIME_ROOT=/tmp/proteome-runtime",
+        "PROTEOME_PROFILER_PROTOCOL_WORKBOOK=output/protocol.xlsx",
+        "PROTEOME_PROFILER_INPUT_MANIFEST=manifests/example_samples.csv",
+        "PROTEOME_PROFILER_TREATMENT_COLUMN=treatment",
+        "PROTEOME_PROFILER_SUBGROUP_COLUMN=sex",
+        "PROTEOME_PROFILER_COMPARISONS=control=treated",
+        "PROTEOME_PROFILER_ALPHA=0.05",
+        "PROTEOME_PROFILER_SHORTLIST_ANALYTES=Analyte A|Analyte B"
+    ), env_path)
+    Sys.setenv(PROTEOME_PROFILER_ENV_FILE = env_path)
+
+    expect_error(
+        initialize_runtime_config_from_env(required_env_file = TRUE),
+        "PROTEOME_PROFILER_SHORTLIST_ANALYTES is not supported"
     )
 })
 
@@ -322,7 +382,7 @@ test_that("replicate-aware grouped configs reject unsupported shortlist knobs", 
 
     expect_error(
         get_analysis_config("replicate_shortlist_basis"),
-        "uses explicit `shortlist\\$analytes`"
+        "uses explicit `shortlist\\$coords`"
     )
 })
 

@@ -317,7 +317,7 @@ write_env_fixture <- function(path, runtime_root, cloud_parent = tempfile("cloud
 
     values <- c(common_values, analysis_values)
     if (include_selected_analytes) {
-        values$PROTEOME_PROFILER_SHORTLIST_ANALYTES <- "Analyte A|Analyte B"
+        values$PROTEOME_PROFILER_SHORTLIST_COORDS <- "A1,2|A3,4"
     }
 
     write_env_lines(path, values)

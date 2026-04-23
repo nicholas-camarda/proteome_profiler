@@ -32,7 +32,7 @@ This example shows fixed-size analyte title strips, a linear fold-change-ratio y
 
 ### Replicate-aware selected-analyte outputs
 
-Selected-analyte outputs are optional follow-up outputs. They are created only when `scripts/select-analytes-analysis.R` is run with selected analytes configured.
+Selected-analyte outputs are optional follow-up outputs. They are created only when `scripts/select-analytes-analysis.R` is run with selected-analyte coordinates configured.
 
 Source output types: `select_analytes/<comparison_slug>/<method>/selected_results.tsv`, `select_analytes/<comparison_slug>/<method>/selected_analyte_qc.tsv`, `select_analytes/<comparison_slug>/<method>/selected_waterfall.png`, and `select_analytes/<comparison_slug>/<method>/selected_bargraphs/<Analyte>.png`.
 

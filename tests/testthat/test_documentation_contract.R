@@ -9,7 +9,7 @@ test_that("README documents the current collaborator handoff artifacts", {
     expect_match(readme, "barplots/<method>/all_tested/")
     expect_match(readme, "barplots/<method>/significant_hits/<threshold>/")
     expect_match(readme, "input_qc/reference_spot_qc.tsv", fixed = TRUE)
-    expect_match(readme, "Selected analytes are optional")
+    expect_match(readme, "Selected-analyte coordinates are optional")
 
     expect_match(docs_readme, "comparison_workbook\\.xlsx")
     expect_match(docs_readme, "run_index\\.tsv")

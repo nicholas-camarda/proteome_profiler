@@ -251,7 +251,7 @@ write_collaborator_env <- function(fixture_root, low_signal_coords, user_name = 
         "PROTEOME_PROFILER_ALPHA=0.05",
         "PROTEOME_PROFILER_ANALYSIS_METHODS=\"raw_log2_lm|normalized_t_test\"",
         "PROTEOME_PROFILER_SHORTLIST_COMPARISONS=\"male_vehicle_vs_aldosterone|female_vehicle_vs_aldosterone\"",
-        "PROTEOME_PROFILER_SHORTLIST_ANALYTES=\"Gene 001|Gene 002|Gene 003\""
+        "PROTEOME_PROFILER_SHORTLIST_COORDS=\"A1,2|A3,4|A5,6\""
     )
     writeLines(env_lines, env_path)
 

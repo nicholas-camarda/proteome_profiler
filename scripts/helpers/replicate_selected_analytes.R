@@ -1,71 +1,142 @@
 # This module is loaded by scripts/helpers/replicate_analysis.R.
 # Source replicate_analysis.R rather than this file directly.
 
-#' Return configured explicit analyte names for the select-analytes workflow
+#' Return configured explicit analyte coordinates for the select-analytes workflow
 #'
-#' The select-analytes workflow is intentionally explicit: users name the
-#' analytes they want to follow up, and the script writes focused plots for
-#' those names rather than deriving a shortlist from significance or
-#' fold-change thresholds.
+#' The select-analytes workflow is intentionally explicit: users provide the
+#' array coordinates they want to follow up, and the script writes focused plots
+#' for those coordinates rather than deriving a shortlist from significance or
+#' fold-change thresholds. Coordinates avoid long vendor analyte labels with
+#' slashes, aliases, and non-ASCII characters.
 #'
 #' @param example_config Named analysis config returned by `get_analysis_config()`.
 #'
-#' @return Character vector of configured analyte names.
-get_selected_analyte_names <- function(example_config) {
-    selected_names <- example_config$selection_analytes
-    if (is.null(selected_names) || length(selected_names) == 0 || all(is.na(selected_names)) || all(selected_names == "")) {
+#' @return Character vector of normalized configured coordinates.
+get_selected_analyte_coordinates <- function(example_config) {
+    selected_coords <- example_config$selection_coords
+    if (is.null(selected_coords) || length(selected_coords) == 0 || all(is.na(selected_coords)) || all(selected_coords == "")) {
         stop(paste(
-            "Selected analytes are optional for setup validation and main analysis,",
-            "but scripts/select-analytes-analysis.R requires PROTEOME_PROFILER_SHORTLIST_ANALYTES",
+            "Selected analyte coordinates are optional for setup validation and main analysis,",
+            "but scripts/select-analytes-analysis.R requires PROTEOME_PROFILER_SHORTLIST_COORDS",
             "in .env to write selected-analyte outputs."
         ), call. = FALSE)
     }
 
-    unique(as.character(selected_names))
+    unique(compact_coordinate_text(as.character(selected_coords)))
 }
 
-#' Suggest close protocol/result names for missing selected analytes
+#' Suggest close protocol/result coordinates for missing selected analytes
 #'
-#' @param missing_name Character scalar requested by the user.
-#' @param available_names Character vector of available analyte names.
+#' @param missing_coord Character scalar requested by the user.
+#' @param available_coords Character vector of available coordinates.
 #' @param n Integer number of suggestions to return.
 #'
-#' @return Character vector of nearby available names.
-suggest_selected_analyte_names <- function(missing_name, available_names, n = 5) {
-    available_names <- unique(as.character(available_names))
-    if (length(available_names) == 0) {
+#' @return Character vector of nearby available coordinates.
+suggest_selected_analyte_coordinates <- function(missing_coord, available_coords, n = 5) {
+    available_coords <- unique(compact_coordinate_text(as.character(available_coords)))
+    if (length(available_coords) == 0) {
         return(character())
     }
 
-    distances <- utils::adist(tolower(missing_name), tolower(available_names))
-    available_names[order(as.numeric(distances), available_names)][seq_len(min(n, length(available_names)))]
+    missing_coord <- compact_coordinate_text(missing_coord)
+    distances <- utils::adist(tolower(missing_coord), tolower(available_coords))
+    available_coords[order(as.numeric(distances), available_coords)][seq_len(min(n, length(available_coords)))]
 }
 
-#' Validate selected analyte names against available analysis names
+#' Build a lookup table for configured selected-analyte coordinates
 #'
-#' @param selected_names Character vector requested in the config.
-#' @param available_names Character vector present in the data or results.
+#' @param selected_coords Character vector requested in the config.
+#' @param available_tbl Tibble containing at least `Name` and `Coordinate`.
 #'
-#' @return Invisibly returns `selected_names`; errors if any are missing.
-validate_selected_analyte_names <- function(selected_names, available_names) {
-    missing_names <- setdiff(selected_names, unique(as.character(available_names)))
-    if (length(missing_names) == 0) {
-        return(invisible(selected_names))
+#' @return Tibble with selected coordinates, resolved names, and order.
+build_selected_coordinate_lookup <- function(selected_coords, available_tbl) {
+    required_columns <- c("Name", "Coordinate")
+    missing_columns <- setdiff(required_columns, names(available_tbl))
+    if (length(missing_columns) > 0) {
+        stop(sprintf(
+            "Cannot resolve selected-analyte coordinates because required column(s) are missing: %s",
+            paste(missing_columns, collapse = ", ")
+        ), call. = FALSE)
     }
 
-    suggestion_text <- map_chr(missing_names, function(missing_name) {
-        suggestions <- suggest_selected_analyte_names(missing_name, available_names)
-        sprintf(
-            "%s (closest available: %s)",
-            missing_name,
-            paste(suggestions, collapse = ", ")
-        )
-    })
+    selected_lookup <- tibble(
+        selection_order = seq_along(selected_coords),
+        requested_coordinate = as.character(selected_coords),
+        selected_coordinate_key = compact_coordinate_text(selected_coords)
+    ) %>%
+        distinct(selected_coordinate_key, .keep_all = TRUE)
 
-    stop(sprintf(
-        "Configured selected analyte name(s) were not found: %s",
-        paste(suggestion_text, collapse = "; ")
-    ))
+    available_lookup <- available_tbl %>%
+        distinct(Name, Coordinate) %>%
+        mutate(selected_coordinate_key = compact_coordinate_text(Coordinate))
+
+    missing_coords <- setdiff(selected_lookup$selected_coordinate_key, available_lookup$selected_coordinate_key)
+    if (length(missing_coords) > 0) {
+        suggestion_text <- map_chr(missing_coords, function(missing_coord) {
+            suggestions <- suggest_selected_analyte_coordinates(missing_coord, available_lookup$Coordinate)
+            sprintf(
+                "%s (closest available: %s)",
+                missing_coord,
+                paste(suggestions, collapse = ", ")
+            )
+        })
+        stop(sprintf(
+            "Configured selected analyte coordinate(s) were not found: %s",
+            paste(suggestion_text, collapse = "; ")
+        ), call. = FALSE)
+    }
+
+    ambiguous_coords <- available_lookup %>%
+        filter(selected_coordinate_key %in% selected_lookup$selected_coordinate_key) %>%
+        count(selected_coordinate_key, name = "n_matches") %>%
+        filter(n_matches > 1)
+    if (nrow(ambiguous_coords) > 0) {
+        ambiguity_text <- map_chr(ambiguous_coords$selected_coordinate_key, function(coord_key) {
+            matches <- available_lookup %>%
+                filter(selected_coordinate_key == coord_key) %>%
+                transmute(match_text = sprintf("%s (%s)", Name, Coordinate)) %>%
+                pull(match_text)
+            sprintf("%s matched: %s", coord_key, paste(matches, collapse = "; "))
+        })
+        stop(sprintf(
+            "Configured selected analyte coordinate(s) are ambiguous: %s",
+            paste(ambiguity_text, collapse = "; ")
+        ), call. = FALSE)
+    }
+
+    selected_lookup %>%
+        left_join(available_lookup, by = "selected_coordinate_key") %>%
+        arrange(selection_order)
+}
+
+#' Validate selected analyte coordinates against an available result table
+#'
+#' @param selected_coords Character vector requested in the config.
+#' @param available_tbl Tibble containing at least `Name` and `Coordinate`.
+#'
+#' @return Invisibly returns the selected-coordinate lookup.
+validate_selected_analyte_coordinates <- function(selected_coords, available_tbl) {
+    invisible(build_selected_coordinate_lookup(selected_coords, available_tbl))
+}
+
+#' Filter a result table to configured selected-analyte coordinates
+#'
+#' @param data_tbl Tibble containing at least `Name` and `Coordinate`.
+#' @param selected_coords Character vector requested in the config.
+#'
+#' @return `data_tbl` filtered and ordered by configured coordinate order.
+filter_selected_analyte_coordinates <- function(data_tbl, selected_coords) {
+    selected_lookup <- build_selected_coordinate_lookup(selected_coords, data_tbl)
+
+    data_tbl %>%
+        mutate(selected_coordinate_key = compact_coordinate_text(Coordinate)) %>%
+        inner_join(
+            selected_lookup %>%
+                select(selection_order, selected_coordinate_key),
+            by = "selected_coordinate_key"
+        ) %>%
+        arrange(selection_order) %>%
+        select(-selection_order, -selected_coordinate_key)
 }
 
 #' Resolve exploratory select-analytes comparisons into control/treatment pairs

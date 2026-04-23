@@ -110,13 +110,13 @@ PROTEOME_PROFILER_RUNTIME_ROOT/output/<user>/<slug>/inferential_results/comparis
 
 Use `inferential_results/run_index.tsv` when you need exact file paths for every generated table and plot.
 
-Create selected-analyte follow-up plots if `PROTEOME_PROFILER_SHORTLIST_ANALYTES` is set in `.env`:
+Create selected-analyte follow-up plots if `PROTEOME_PROFILER_SHORTLIST_COORDS` is set in `.env`:
 
 ```bash
 Rscript scripts/select-analytes-analysis.R
 ```
 
-Selected analytes are optional. `find_ref_thresh.R` and `main.R` do not require selected analytes.
+Selected-analyte coordinates are optional. `find_ref_thresh.R` and `main.R` do not require them.
 
 ## Recommended File Layout
 
@@ -191,10 +191,12 @@ Optional selected-analyte follow-up settings:
 ```bash
 PROTEOME_PROFILER_SHORTLIST_COMPARISONS="male_vehicle_vs_aldosterone|female_vehicle_vs_aldosterone"
 PROTEOME_PROFILER_SHORTLIST_METHODS="raw_log2_lm|normalized_t_test"
-PROTEOME_PROFILER_SHORTLIST_ANALYTES="CCL3/CCL4/MIP-1α/β|IL-1α/IL-1F1|IL-10"
+PROTEOME_PROFILER_SHORTLIST_COORDS="A19,20|G1,2|D13,14"
 ```
 
 The selected-analyte settings are only required when running `Rscript scripts/select-analytes-analysis.R`.
+
+Use array coordinates, not analyte names, for selected-analyte follow-up. Coordinates avoid copy/paste problems from long vendor labels with slashes, aliases, hyphens, or Greek letters. Coordinate formats such as `A19,20`, `A19, 20`, and `A19,A20` are accepted and normalized to the same coordinate.
 
 ### Writing `PROTEOME_PROFILER_SHORTLIST_COMPARISONS`
 
@@ -350,7 +352,7 @@ Artifact roles:
 - `run_index.tsv` is the machine-readable path and provenance index.
 - `comparisons/<comparison_slug>/` contains comparison-scoped method tables and plots.
 
-`select_analytes/` is created by `scripts/select-analytes-analysis.R` when selected analytes are configured.
+`select_analytes/` is created by `scripts/select-analytes-analysis.R` when selected-analyte coordinates are configured.
 
 ## Methods Text
 

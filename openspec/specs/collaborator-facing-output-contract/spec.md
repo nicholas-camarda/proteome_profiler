@@ -43,7 +43,7 @@ Verification SHALL include inspection of representative generated results and pl
 
 #### Scenario: Workbook content is inspected
 - **WHEN** replicate-aware inferential analysis is regenerated for a fixture or collaborator-safe analysis
-- **THEN** verification SHALL inspect `comparison_workbook.xlsx` sheet names, sheet order, non-empty summary tables, method/comparison labels, hit counts, QC totals, and selected-analyte summary content when selected analytes are configured
+- **THEN** verification SHALL inspect `comparison_workbook.xlsx` sheet names, sheet order, non-empty summary tables, method/comparison labels, hit counts, QC totals, and selected-analyte summary content when selected-analyte coordinates are configured
 
 #### Scenario: Plot content is inspected
 - **WHEN** representative waterfall, 25-per-page barplot, significant-hit barplot, and selected-analyte plot files are regenerated
@@ -72,13 +72,13 @@ Verification SHALL include inspection of representative generated results and pl
 ### Requirement: Selected-analyte summaries SHALL be conditional and comparison-scoped
 Selected-analyte outputs SHALL remain optional follow-up artifacts and SHALL add summary content only when selected-analyte analysis is configured and executed.
 
-#### Scenario: No selected analytes configured
-- **WHEN** main inferential analysis runs without selected analytes configured
+#### Scenario: No selected-analyte coordinates configured
+- **WHEN** main inferential analysis runs without selected-analyte coordinates configured
 - **THEN** the analysis SHALL complete without selected-analyte summary sheets or selected-analyte output folders
 
 #### Scenario: Selected-analyte follow-up writes summaries
 - **WHEN** selected-analyte analysis is configured and executed
-- **THEN** the workflow SHALL write or refresh a selected-analyte summary sheet in `comparison_workbook.xlsx` with selected analyte names, comparison slugs, methods, plot availability, and QC status
+- **THEN** the workflow SHALL write or refresh a selected-analyte summary sheet in `comparison_workbook.xlsx` with selected analyte names, coordinates, comparison slugs, methods, plot availability, and QC status
 
 #### Scenario: Selected-analyte artifacts stay in selected-analyte tree
 - **WHEN** selected-analyte plots and tables are generated

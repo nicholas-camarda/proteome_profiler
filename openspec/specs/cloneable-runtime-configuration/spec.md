@@ -14,13 +14,13 @@ The system SHALL load the active run configuration from a repo-root `.env` file 
 - **WHEN** `.env` defines analysis mode, protocol paths, input manifest, comparison settings, thresholds, and methods
 - **THEN** the pipeline SHALL parse those values into the internal analysis configuration used by the analysis scripts
 
-#### Scenario: Optional selected analytes omitted
-- **WHEN** `.env` does not define selected analytes
+#### Scenario: Optional selected-analyte coordinates omitted
+- **WHEN** `.env` does not define selected-analyte coordinates
 - **THEN** setup validation and the main analysis SHALL still run if all required analysis settings are valid
 
-#### Scenario: Optional selected analytes provided
-- **WHEN** `.env` defines selected analytes
-- **THEN** the selected-analyte follow-up workflow SHALL use those analytes for user-requested focused outputs
+#### Scenario: Optional selected-analyte coordinates provided
+- **WHEN** `.env` defines `PROTEOME_PROFILER_SHORTLIST_COORDS`
+- **THEN** the selected-analyte follow-up workflow SHALL use those coordinates for user-requested focused outputs
 
 #### Scenario: Selected-analyte comparison slugs configured
 - **WHEN** `.env` defines `PROTEOME_PROFILER_SHORTLIST_COMPARISONS`
@@ -34,9 +34,9 @@ The system SHALL load the active run configuration from a repo-root `.env` file 
 - **WHEN** a configured selected-analyte comparison slug does not match an available comparison
 - **THEN** the workflow SHALL fail clearly with the expected slug format and the available comparison slugs
 
-#### Scenario: Selected-analyte workflow without selected analytes
-- **WHEN** the selected-analyte follow-up script is run without selected analytes configured
-- **THEN** the script SHALL stop with a clear message explaining that selected analytes are optional for main analysis but required for selected-analyte outputs
+#### Scenario: Selected-analyte workflow without selected-analyte coordinates
+- **WHEN** the selected-analyte follow-up script is run without selected-analyte coordinates configured
+- **THEN** the script SHALL stop with a clear message explaining that selected-analyte coordinates are optional for main analysis but required for selected-analyte outputs
 
 #### Scenario: Runtime root selected from `.env`
 - **WHEN** `.env` defines `PROTEOME_PROFILER_RUNTIME_ROOT`
@@ -200,9 +200,9 @@ The README SHALL guide users through copying `.env.example`, editing one `.env` 
 - **WHEN** a lab user with no R config experience reads the quick start
 - **THEN** the primary path SHALL be editing `.env` and following commands, with no R script edits required
 
-#### Scenario: Selected analytes documented as optional follow-up
+#### Scenario: Selected-analyte coordinates documented as optional follow-up
 - **WHEN** the README describes selected-analyte configuration
-- **THEN** it SHALL state that selected analytes are optional for setup validation and main analysis, and are only required when the user runs the selected-analyte follow-up workflow
+- **THEN** it SHALL state that selected-analyte coordinates are optional for setup validation and main analysis, and are only required when the user runs the selected-analyte follow-up workflow
 
 #### Scenario: Documentation describes present behavior only
 - **WHEN** user-facing documentation is updated for this runtime workflow

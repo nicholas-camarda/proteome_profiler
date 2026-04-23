@@ -408,24 +408,46 @@ read_licor_signal_sheet <- function(workbook_path, sheet_name, sample_id = NULL,
 
 #' Convert protocol coordinates into the compact display format used downstream
 #'
-#' @param text_vector Character vector like `"A1, A2"`.
+#' @param text_vector Character vector like `"A1, A2"`, `"A1,2"`, or
+#'   `"A1,A2"`.
 #'
 #' @return Character vector like `"A1,2"`.
 compact_coordinate_text <- function(text_vector) {
-    text_list <- str_split(text_vector, ", ")
-
-    output <- sapply(text_list, function(words) {
-        letters <- gsub("\\d+", "", words)
-        numbers <- gsub("\\D+", "", words)
-
-        unique_letters <- unique(letters)
-        pieces <- character(length(unique_letters))
-        for (i in seq_along(unique_letters)) {
-            matching_numbers <- numbers[letters == unique_letters[i]]
-            pieces[i] <- paste(unique_letters[i], paste(matching_numbers, collapse = ","), sep = "")
+    output <- sapply(as.character(text_vector), function(text_value) {
+        if (is.na(text_value)) {
+            return(NA_character_)
+        }
+        tokens <- str_split(str_trim(text_value), "\\s*,\\s*", simplify = FALSE)[[1]]
+        tokens <- tokens[tokens != ""]
+        if (length(tokens) == 0) {
+            return("")
         }
 
-        paste(pieces, collapse = ", ")
+        current_letters <- NA_character_
+        letter_order <- character()
+        grouped_numbers <- list()
+        for (token in tokens) {
+            token_letters <- str_extract(token, "^[A-Za-z]+")
+            token_numbers <- str_extract_all(token, "\\d+")[[1]]
+            if (!is.na(token_letters) && nzchar(token_letters)) {
+                current_letters <- toupper(token_letters)
+            }
+            if (is.na(current_letters) || length(token_numbers) == 0) {
+                next
+            }
+            if (!current_letters %in% letter_order) {
+                letter_order <- c(letter_order, current_letters)
+                grouped_numbers[[current_letters]] <- character()
+            }
+            grouped_numbers[[current_letters]] <- c(grouped_numbers[[current_letters]], token_numbers)
+        }
+
+        paste(
+            vapply(letter_order, function(letters) {
+                paste0(letters, paste(unique(grouped_numbers[[letters]]), collapse = ","))
+            }, character(1)),
+            collapse = ", "
+        )
     })
 
     unname(output)

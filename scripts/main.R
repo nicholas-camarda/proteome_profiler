@@ -186,7 +186,14 @@ if (analysis_mode == "replicate") {
 
     # Parallelism is applied across threshold combinations, not across the raw-data
     # parsing step above, because the dataset only needs to be built once.
-    num_cores <- max(1, min(parallel::detectCores() - 1, length(my_main_threshold)))
+    detected_cores <- suppressWarnings(as.integer(future::availableCores()[[1]]))
+    if (!is.finite(detected_cores)) {
+        detected_cores <- parallel::detectCores()
+    }
+    if (!is.finite(detected_cores)) {
+        detected_cores <- 1
+    }
+    num_cores <- max(1, min(detected_cores - 1, length(my_main_threshold)))
     message(qq("Switching to multisession mode. Using @{num_cores} cores..."))
     plan(multisession, workers = num_cores)
 

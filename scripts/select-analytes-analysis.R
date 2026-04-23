@@ -9,7 +9,7 @@ source(file.path("scripts", "helpers", "array_helper_scripts.R"))
 #' @Number1
 #' This script writes explicit selected-analyte views under the per-user
 #' analysis tree in `select_analytes/`. Both exploratory and replicate-aware modes
-#' use `shortlist$analytes` / `selection_analytes` as the source of truth and
+#' use `shortlist$coords` / `selection_coords` as the source of truth and
 #' write one comparison-scoped folder per selected comparison.
 initialize_runtime_config_from_env(required_env_file = TRUE)
 
@@ -19,7 +19,7 @@ info_fn <- get_protocol_workbook_path(example_config)
 analysis_output_root <- get_analysis_output_root(example_config)
 output_dir <- file.path(analysis_output_root, "select_analytes")
 dir.create(output_dir, showWarnings = FALSE, recursive = TRUE)
-selected_names <- get_selected_analyte_names(example_config)
+selected_coords <- get_selected_analyte_coordinates(example_config)
 
 if (is_replicate_aware_config(example_config)) {
     inferential_dir <- file.path(analysis_output_root, "inferential_results")
@@ -65,10 +65,8 @@ if (is_replicate_aware_config(example_config)) {
             dir.create(method_output_dir, recursive = TRUE, showWarnings = FALSE)
             clean_replicate_shortlist_comparison_dir(method_output_dir)
 
-            validate_selected_analyte_names(selected_names, comparison_tbl$Name)
-            selected_tbl <- comparison_tbl %>%
-                filter(Name %in% selected_names) %>%
-                arrange(match(Name, selected_names))
+            validate_selected_analyte_coordinates(selected_coords, comparison_tbl)
+            selected_tbl <- filter_selected_analyte_coordinates(comparison_tbl, selected_coords)
 
             selected_results_path <- file.path(method_output_dir, "selected_results.tsv")
             write_tsv(selected_tbl, selected_results_path)
@@ -221,7 +219,7 @@ if (is_replicate_aware_config(example_config)) {
     analyte_info_df <- read_excel(info_fn) %>%
         mutate(sname_grouping = row_number()) %>%
         rename(Name = `Analyte/Control`)
-    validate_selected_analyte_names(selected_names, analyte_info_df$Name)
+    validate_selected_analyte_coordinates(selected_coords, analyte_info_df)
 
     df <- if (config_uses_sample_manifest(example_config)) {
         manifest_path <- resolve_project_path(example_config$sample_manifest, must_exist = TRUE)
@@ -294,12 +292,11 @@ if (is_replicate_aware_config(example_config)) {
         )
         result_key <- qq("@{control_label} vs @{treatment_label}")
         selected_wf <- selected_lst_obj[[result_key]]$wf_dat[[treatment_label]] %>%
-            filter(Name %in% selected_names) %>%
-            arrange(match(Name, selected_names)) %>%
+            filter_selected_analyte_coordinates(selected_coords) %>%
             mutate(order = factor(seq_along(order)))
         selected_dat <- selected_lst_obj[[result_key]]$dat_filtered[[treatment_label]] %>%
-            filter(Name %in% selected_names) %>%
-            arrange(match(Name, selected_names), group)
+            filter_selected_analyte_coordinates(selected_coords) %>%
+            arrange(factor(compact_coordinate_text(Coordinate), levels = selected_coords), group)
 
         selected_path <- file.path(output_subdir, "selected_analytes.tsv")
         write_tsv(selected_dat, selected_path)
@@ -319,7 +316,7 @@ if (is_replicate_aware_config(example_config)) {
                 no_plot_reason = if_else(finite_relative_signal, NA_character_, "relative_signal is not finite"),
                 .groups = "drop"
             ) %>%
-            arrange(match(Name, selected_names))
+            arrange(match(compact_coordinate_text(Coordinate), selected_coords))
         selected_qc_path <- file.path(output_subdir, "selected_analyte_qc.tsv")
         write_tsv(qc_tbl, selected_qc_path)
 

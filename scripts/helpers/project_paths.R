@@ -149,6 +149,7 @@ proteome_profiler_env_names <- function() {
         "PROTEOME_PROFILER_SHORTLIST_COMPARISONS",
         "PROTEOME_PROFILER_SHORTLIST_METHOD",
         "PROTEOME_PROFILER_SHORTLIST_METHODS",
+        "PROTEOME_PROFILER_SHORTLIST_COORDS",
         "PROTEOME_PROFILER_SHORTLIST_ANALYTES"
     )
 }
@@ -219,6 +220,13 @@ build_proteome_profiler_config_from_env <- function() {
     )
     input <- input[!vapply(input, is.null, logical(1))]
 
+    if (!is_blank_value(env_value("PROTEOME_PROFILER_SHORTLIST_ANALYTES"))) {
+        stop(paste(
+            "PROTEOME_PROFILER_SHORTLIST_ANALYTES is not supported.",
+            "Use PROTEOME_PROFILER_SHORTLIST_COORDS with coordinate values such as A19,20|G1,2."
+        ), call. = FALSE)
+    }
+
     shortlist <- list(
         control = env_value("PROTEOME_PROFILER_SHORTLIST_CONTROL"),
         treatment = env_value("PROTEOME_PROFILER_SHORTLIST_TREATMENT"),
@@ -228,7 +236,7 @@ build_proteome_profiler_config_from_env <- function() {
             env_value("PROTEOME_PROFILER_SHORTLIST_METHODS", env_value("PROTEOME_PROFILER_SHORTLIST_METHOD")),
             field = "PROTEOME_PROFILER_SHORTLIST_METHODS"
         ),
-        analytes = parse_env_vector(env_value("PROTEOME_PROFILER_SHORTLIST_ANALYTES"), field = "PROTEOME_PROFILER_SHORTLIST_ANALYTES")
+        coords = parse_env_vector(env_value("PROTEOME_PROFILER_SHORTLIST_COORDS"), field = "PROTEOME_PROFILER_SHORTLIST_COORDS")
     )
     shortlist <- shortlist[!vapply(shortlist, is.null, logical(1))]
 
@@ -479,6 +487,9 @@ normalize_analysis_config <- function(analysis_config) {
 
     shortlist <- config[["shortlist"]]
     if (!is.null(shortlist)) {
+        if (!is.null(shortlist[["analytes"]])) {
+            stop("shortlist$analytes is not supported. Use shortlist$coords / PROTEOME_PROFILER_SHORTLIST_COORDS.", call. = FALSE)
+        }
         if (!is.null(shortlist[["control"]]) && is.null(config[["selection_control"]])) {
             config$selection_control <- shortlist[["control"]]
         }
@@ -509,8 +520,8 @@ normalize_analysis_config <- function(analysis_config) {
         if (!is.null(shortlist[["method"]]) && is.null(config[["selection_method"]])) {
             config$selection_method <- shortlist[["method"]]
         }
-        if (!is.null(shortlist[["analytes"]]) && is.null(config[["selection_analytes"]])) {
-            config$selection_analytes <- unname(as.character(shortlist[["analytes"]]))
+        if (!is.null(shortlist[["coords"]]) && is.null(config[["selection_coords"]])) {
+            config$selection_coords <- unname(as.character(shortlist[["coords"]]))
         }
         if (!is.null(shortlist[["write_bargraphs"]]) && is.null(config[["selection_write_bargraphs"]])) {
             config$selection_write_bargraphs <- isTRUE(shortlist[["write_bargraphs"]])
@@ -547,7 +558,7 @@ normalize_analysis_config <- function(analysis_config) {
         if (length(unsupported_shortlist_fields) > 0) {
             stop(sprintf(
                 paste(
-                    "Replicate-aware `select-analytes-analysis.R` uses explicit `shortlist$analytes`",
+                    "Replicate-aware `select-analytes-analysis.R` uses explicit `shortlist$coords`",
                     "and writes selected outputs under `select_analytes/<comparison_slug>/<method>/`.",
                     "Remove these unsupported shortlist fields from the analysis config: %s"
                 ),

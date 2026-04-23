@@ -210,5 +210,5 @@ test_that("selected-analyte follow-up stops clearly when analytes are omitted", 
     )
 
     expect_false(identical(shortlist_result$status, 0))
-    expect_true(any(grepl("optional for setup validation and main analysis", shortlist_result$output)))
+    expect_true(any(grepl("Selected analyte coordinates are optional", shortlist_result$output)))
 })
