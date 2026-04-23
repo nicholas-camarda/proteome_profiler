@@ -96,7 +96,13 @@ Review low-signal threshold diagnostics:
 Rscript scripts/find_ref_thresh.R
 ```
 
-Run the main analysis:
+This writes threshold-diagnostic outputs under:
+
+```text
+PROTEOME_PROFILER_RUNTIME_ROOT/output/<user>/<slug>/threshold_diagnostics/
+```
+
+Then, run the main analysis:
 
 ```bash
 Rscript scripts/main.R
@@ -348,8 +354,8 @@ Artifact roles:
 - `comparison_workbook.xlsx` is the first human-readable replicate-aware result.
 - `input_qc/reference_spot_qc.tsv` lists, for each biological sample, the reference-spot denominator, reference rows, raw reference signals, and QC status used to compute `normalized_signal` for `normalized_t_test`.
 - `<method>_results.xlsx` files contain full detailed result tables for one method.
-- `methods_overview.md` explains the method estimands, fold-change definitions, and significance flags.
-- `run_index.tsv` is the machine-readable path and provenance index.
+- `methods_overview.md` is a short reading guide for what each inferential method means and how to interpret the plots and tables.
+- `run_index.tsv` is the exact path and provenance index for the generated comparison-specific tables and plots.
 - `comparisons/<comparison_slug>/` contains comparison-scoped method tables and plots.
 
 `select_analytes/` is created by `scripts/select-analytes-analysis.R` when selected-analyte coordinates are configured.

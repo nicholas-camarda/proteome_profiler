@@ -132,6 +132,19 @@ test_that("multi-method inferential outputs write method-specific workbooks plus
     expect_true(all(!is.na(run_index$full_waterfall_path)))
     expect_true(all(file.exists(as.character(run_index$full_waterfall_path))))
 
+    methods_overview <- paste(
+        readLines(file.path(output_dir, "methods_overview.md"), warn = FALSE),
+        collapse = "\n"
+    )
+    expect_match(methods_overview, "## Start Here")
+    expect_match(methods_overview, "`comparison_workbook\\.xlsx`")
+    expect_match(methods_overview, "`run_index\\.tsv`")
+    expect_match(methods_overview, "## How To Read The Plots")
+    expect_match(methods_overview, "## Compare Methods Carefully")
+    expect_match(methods_overview, "## Shared Definitions")
+    expect_false(grepl("<comparison_slug>", methods_overview, fixed = TRUE))
+    expect_false(grepl("<method>", methods_overview, fixed = TRUE))
+
     expect_true(file.exists(file.path(output_dir, "comparisons", "male_control_vs_drug_a", "tables", "raw_log2_lm_results.tsv")))
     expect_true(file.exists(file.path(output_dir, "comparisons", "male_control_vs_drug_a", "tables", "normalized_t_test_results.tsv")))
     expect_false(file.exists(file.path(output_dir, "comparisons", "male_control_vs_drug_a", "results.tsv")))
