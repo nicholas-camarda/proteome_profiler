@@ -229,9 +229,9 @@ find_filter_thresh <- function(wide_df, filter_threshold = NULL, ref_coords = NU
         )
 
     # print(filtered_long_df, n = Inf)
-    boxp <- ggplot(ref_coords_long_df, mapping = aes(x = Name, y = signal, fill = group, group = Name)) +
-        geom_boxplot(outlier.shape = NA) +
-        geom_jitter(position = position_jitter(0.1), size = rel(2.5), shape = 21) +
+    boxp <- ggplot(ref_coords_long_df, mapping = aes(x = Name, y = signal)) +
+        geom_boxplot(aes(group = Name), outlier.shape = NA) +
+        geom_jitter(aes(fill = group), position = position_jitter(0.1), size = rel(2.5), shape = 21) +
         theme_prism(base_size = 12) +
         theme(
             axis.text.x = element_text(angle = 90, hjust = 0.95, vjust = 0.2),
