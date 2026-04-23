@@ -11,8 +11,6 @@ Routine users edit one local `.env` file plus their manifest CSV. Users run the 
 
 Rendered output examples are described in [docs/README.md](docs/README.md).
 
-Before sharing collaborator-facing results, use the [artifact review checklist](docs/artifact-review-checklist.md).
-
 ## Quick Start
 
 ### 1. Open Terminal
