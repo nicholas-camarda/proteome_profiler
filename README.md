@@ -134,11 +134,11 @@ proteome_profiler/
   manifests/
     my_samples.csv
   workbooks/
-    M_VEH_01.xlsx
-    M_VEH_02.xlsx
-    M_ALDO_01.xlsx
-    F_VEH_01.xlsx
-    F_ALDO_01.xlsx
+    CTRL_MALE_01.xlsx
+    CTRL_MALE_02.xlsx
+    TREATED_MALE_01.xlsx
+    CTRL_FEMALE_01.xlsx
+    TREATED_FEMALE_01.xlsx
   protocols/
     cytokine_array_protocol.pdf
     cytokine_array_protocol.xlsx
@@ -165,10 +165,10 @@ Comparison values use `control=treatment1|treatment2`.
 Example replicate-aware run:
 
 ```bash
-PROTEOME_PROFILER_ANALYSIS=nicole_mf_veh_vs_aldo
+PROTEOME_PROFILER_ANALYSIS=demo_control_vs_treated
 PROTEOME_PROFILER_MODE=replicate
-PROTEOME_PROFILER_USER=nicole
-PROTEOME_PROFILER_SLUG=nicole_mf_veh_vs_aldo
+PROTEOME_PROFILER_USER=demo_user
+PROTEOME_PROFILER_SLUG=demo_control_vs_treated
 
 PROTEOME_PROFILER_RUNTIME_ROOT=~/ProjectsRuntime/proteome_profiler
 PROTEOME_PROFILER_CLOUD_PARENT=
@@ -182,7 +182,7 @@ PROTEOME_PROFILER_INPUT_MANIFEST=manifests/my_samples.csv
 PROTEOME_PROFILER_TREATMENT_COLUMN=treatment
 PROTEOME_PROFILER_SUBGROUP_COLUMN=sex
 
-PROTEOME_PROFILER_COMPARISONS="vehicle=aldosterone"
+PROTEOME_PROFILER_COMPARISONS="control=treated"
 PROTEOME_PROFILER_REF_COORDS="E21,22|G13,14|E17,18"
 PROTEOME_PROFILER_REF_SIGNAL=1500
 
@@ -195,7 +195,7 @@ PROTEOME_PROFILER_ANALYSIS_METHODS="raw_log2_lm|normalized_t_test"
 Optional selected-analyte follow-up settings:
 
 ```bash
-PROTEOME_PROFILER_SHORTLIST_COMPARISONS="male_vehicle_vs_aldosterone|female_vehicle_vs_aldosterone"
+PROTEOME_PROFILER_SHORTLIST_COMPARISONS="male_control_vs_treated|female_control_vs_treated"
 PROTEOME_PROFILER_SHORTLIST_METHODS="raw_log2_lm|normalized_t_test"
 PROTEOME_PROFILER_SHORTLIST_COORDS="A19,20|G1,2|D13,14"
 ```
@@ -220,26 +220,26 @@ Example:
 
 ```text
 PROTEOME_PROFILER_SUBGROUP_COLUMN=sex
-PROTEOME_PROFILER_COMPARISONS="vehicle=aldosterone"
+PROTEOME_PROFILER_COMPARISONS="control=treated"
 ```
 
 If the manifest has `sex` values `male` and `female`, the available comparison slugs are:
 
 ```text
-male_vehicle_vs_aldosterone
-female_vehicle_vs_aldosterone
+male_control_vs_treated
+female_control_vs_treated
 ```
 
 To select both:
 
 ```bash
-PROTEOME_PROFILER_SHORTLIST_COMPARISONS="male_vehicle_vs_aldosterone|female_vehicle_vs_aldosterone"
+PROTEOME_PROFILER_SHORTLIST_COMPARISONS="male_control_vs_treated|female_control_vs_treated"
 ```
 
 For a non-stratified or exploratory comparison, omit the subgroup prefix:
 
 ```bash
-PROTEOME_PROFILER_SHORTLIST_COMPARISONS="vehicle_vs_aldosterone"
+PROTEOME_PROFILER_SHORTLIST_COMPARISONS="control_vs_treated"
 ```
 
 If you leave `PROTEOME_PROFILER_SHORTLIST_COMPARISONS` blank and the analysis has exactly one comparison, the selected-analyte script uses that comparison. If the analysis has multiple comparisons, set this field explicitly.
@@ -249,8 +249,8 @@ For `exploratory` mode without a manifest, use a data directory and group levels
 ```bash
 PROTEOME_PROFILER_MODE=exploratory
 PROTEOME_PROFILER_INPUT_DATA_DIR=workbooks
-PROTEOME_PROFILER_GROUP_LEVELS="vehicle|treated"
-PROTEOME_PROFILER_COMPARISONS="vehicle=treated"
+PROTEOME_PROFILER_GROUP_LEVELS="control|treated"
+PROTEOME_PROFILER_COMPARISONS="control=treated"
 PROTEOME_PROFILER_FOLD_CHANGE=1.5
 PROTEOME_PROFILER_GROUPS_PER_PAGE=25
 ```
@@ -273,11 +273,11 @@ If the analysis is stratified, include the subgroup column named in `.env`, such
 
 ```csv
 sample_id,workbook_path,treatment,sex
-M_VEH_01,workbooks/M_VEH_01.xlsx,vehicle,male
-M_VEH_02,workbooks/M_VEH_02.xlsx,vehicle,male
-M_ALDO_01,workbooks/M_ALDO_01.xlsx,aldosterone,male
-F_VEH_01,workbooks/F_VEH_01.xlsx,vehicle,female
-F_ALDO_01,workbooks/F_ALDO_01.xlsx,aldosterone,female
+CTRL_MALE_01,workbooks/CTRL_MALE_01.xlsx,control,male
+CTRL_MALE_02,workbooks/CTRL_MALE_02.xlsx,control,male
+TREATED_MALE_01,workbooks/TREATED_MALE_01.xlsx,treated,male
+CTRL_FEMALE_01,workbooks/CTRL_FEMALE_01.xlsx,control,female
+TREATED_FEMALE_01,workbooks/TREATED_FEMALE_01.xlsx,treated,female
 ```
 
 ### One Workbook With Multiple Sample Sheets
@@ -286,11 +286,11 @@ Use `sheet_name` when multiple samples are sheets in the same workbook:
 
 ```csv
 sample_id,workbook_path,sheet_name,treatment,sex
-M_VEH_01,workbooks/cytokine_array_041326.xlsx,MV1,vehicle,male
-M_VEH_02,workbooks/cytokine_array_041326.xlsx,MV2,vehicle,male
-M_ALDO_01,workbooks/cytokine_array_041326.xlsx,MA1,aldosterone,male
-F_VEH_01,workbooks/cytokine_array_041326.xlsx,FV1,vehicle,female
-F_ALDO_01,workbooks/cytokine_array_041326.xlsx,FA1,aldosterone,female
+CTRL_MALE_01,workbooks/cytokine_array_041326.xlsx,CV1,control,male
+CTRL_MALE_02,workbooks/cytokine_array_041326.xlsx,CV2,control,male
+TREATED_MALE_01,workbooks/cytokine_array_041326.xlsx,TR1,treated,male
+CTRL_FEMALE_01,workbooks/cytokine_array_041326.xlsx,CF1,control,female
+TREATED_FEMALE_01,workbooks/cytokine_array_041326.xlsx,TF1,treated,female
 ```
 
 Only listed sheets are read. Summary tabs such as `ALL data` or `Benjamini Hochberg` are ignored unless they are listed in the manifest.

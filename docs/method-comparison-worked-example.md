@@ -2,7 +2,7 @@
 
 This note explains what it means to say that `raw_log2_lm` models treatment effects on a scale where multiplicative changes are natural.
 
-It uses one real comparison from the Nicole `male: vehicle vs aldosterone` run and walks through the arithmetic for two analytes:
+It uses one worked example comparison (`male: control vs treated`) and walks through the arithmetic for two analytes:
 
 - `CXCL9/MIG`
 - `IL-6`
@@ -73,13 +73,13 @@ So:
 
 Male raw signals:
 
-- vehicle: `1450, 2785, 2730, 1765`
-- aldosterone: `2010, 3035, 5185, 2585`
+- control: `1450, 2785, 2730, 1765`
+- treated: `2010, 3035, 5185, 2585`
 
 Male normalized values:
 
-- vehicle: `0.0349, 0.0293, 0.0257, 0.0209`
-- aldosterone: `0.0386, 0.0422, 0.0456, 0.0417`
+- control: `0.0349, 0.0293, 0.0257, 0.0209`
+- treated: `0.0386, 0.0422, 0.0456, 0.0417`
 
 Here "normalized values" means the sample-level `normalized_signal` values for this analyte: each raw CXCL9/MIG signal divided by that same sample's reference-spot denominator.
 
@@ -87,12 +87,12 @@ Here "normalized values" means the sample-level `normalized_signal` values for t
 
 Take `log2` of each raw signal:
 
-- vehicle:
+- control:
   - `log2(1450) ≈ 10.50`
   - `log2(2785) ≈ 11.44`
   - `log2(2730) ≈ 11.41`
   - `log2(1765) ≈ 10.79`
-- aldosterone:
+- treated:
   - `log2(2010) ≈ 10.97`
   - `log2(3035) ≈ 11.57`
   - `log2(5185) ≈ 12.34`
@@ -100,8 +100,8 @@ Take `log2` of each raw signal:
 
 Group means on the `log2` scale:
 
-- mean vehicle log2 signal ≈ `11.05`
-- mean aldosterone log2 signal ≈ `11.57`
+- mean control log2 signal ≈ `11.05`
+- mean treated log2 signal ≈ `11.57`
 
 Difference:
 
@@ -121,8 +121,8 @@ That matches the pipeline result:
 
 Group means on the normalized scale:
 
-- mean vehicle normalized ≈ `0.0277`
-- mean aldosterone normalized ≈ `0.0420`
+- mean control normalized ≈ `0.0277`
+- mean treated normalized ≈ `0.0420`
 
 Ratio:
 
@@ -142,8 +142,8 @@ That matches the pipeline result:
 
 After normalization, the groups separate much more cleanly:
 
-- all normalized aldosterone values are around `0.0386` to `0.0456`
-- all normalized vehicle values are around `0.0209` to `0.0349`
+- all normalized treated values are around `0.0386` to `0.0456`
+- all normalized control values are around `0.0209` to `0.0349`
 
 So the normalization reduces the apparent overlap for this analyte, and the t-test gets much stronger evidence for a group difference.
 
@@ -151,13 +151,13 @@ So the normalization reduces the apparent overlap for this analyte, and the t-te
 
 Male raw signals:
 
-- vehicle: `2175, 4450, 5295, 6875`
-- aldosterone: `5810, 16400, 10950, 21550`
+- control: `2175, 4450, 5295, 6875`
+- treated: `5810, 16400, 10950, 21550`
 
 Male normalized values:
 
-- vehicle: `0.0523, 0.0469, 0.0498, 0.0814`
-- aldosterone: `0.1116, 0.2279, 0.0963, 0.3480`
+- control: `0.0523, 0.0469, 0.0498, 0.0814`
+- treated: `0.1116, 0.2279, 0.0963, 0.3480`
 
 ### `raw_log2_lm`
 
@@ -177,7 +177,7 @@ The fitted result is:
 
 ### Why this goes the other way
 
-Here the normalized effect size is larger, but the normalized aldosterone values are also much more spread out:
+Here the normalized effect size is larger, but the normalized treated values are also much more spread out:
 
 - approximately `0.096` to `0.348`
 

@@ -4,7 +4,9 @@ This folder holds repo-local output examples that can be embedded directly in th
 
 ## Embedded Output Examples
 
-These are local rendered example outputs from the current workspace. They are example outputs, not defaults for a new project.
+These are local rendered example outputs from a synthetic public-safe fixture. Regenerate them with `Rscript tests/generate_docs_example_fixture.R`.
+
+They are example outputs, not defaults for a new project.
 
 ## Replicate-Aware Examples
 
@@ -14,7 +16,7 @@ Open `inferential_results/comparison_workbook.xlsx` first for replicate-aware re
 
 ### Replicate-aware inferential waterfall
 
-![Replicate-aware inferential waterfall example](output-examples/replicate-aware-inferential-waterfall-se.png)
+![Replicate-aware inferential waterfall example](output-examples/replicate-aware-inferential-waterfall-example.png)
 
 Source output type: `inferential_results/comparisons/<comparison_slug>/waterfall_plots/<method>/<method>_waterfall*.png`
 
@@ -22,7 +24,7 @@ All replicate-aware inferential waterfall methods show method-specific effect es
 
 ### Replicate-aware inferential barplots
 
-![Replicate-aware inferential barplot example](output-examples/replicate-aware-inferential-barplot-fdr-page-1.png)
+![Replicate-aware inferential barplot example](output-examples/replicate-aware-inferential-barplot-example-page-1.png)
 
 All-tested source output type: `inferential_results/comparisons/<comparison_slug>/barplots/<method>/all_tested/<method>_barplot_all_tested_page_<n>.png`
 
@@ -42,25 +44,25 @@ For the broader explanation of what each output means and where it is generated,
 
 ### Threshold diagnostics
 
-![Threshold diagnostics example](output-examples/threshold-diagnostics-region-stats.png)
+![Threshold diagnostics example](output-examples/threshold-diagnostics-example.png)
 
 Source output type: `threshold_diagnostics/region_stats.png`
 
 ### Main analysis waterfall
 
-![Main analysis waterfall example](output-examples/main-waterfall-sorafenib.png)
+![Main analysis waterfall example](output-examples/main-waterfall-example.png)
 
 Source output type: `main_analysis/.../all_comparisons/waterfalls/...png`
 
 ### Main analysis combined barplots
 
-![Main analysis combined barplot example](output-examples/main-barplot-combined-page-1.png)
+![Main analysis combined barplot example](output-examples/main-barplot-example-page-1.png)
 
 Source output type: `main_analysis/.../fold_change_hits/.../barplots/...png`
 
 ### Selected-analytes waterfall
 
-![Selected analytes waterfall example](output-examples/select-analytes-waterfall.png)
+![Selected analytes waterfall example](output-examples/selected-analytes-waterfall-example.png)
 
 Source output type: `select_analytes/<comparison_slug>/selected_waterfall.png`
 

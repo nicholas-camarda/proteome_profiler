@@ -250,12 +250,12 @@ find_filter_thresh <- function(wide_df, filter_threshold = NULL, ref_coords = NU
     n_remaining <- length(filtered_long_df$Name %>% unique())
 
     histop <- ggplot(long_df, mapping = aes(x = signal)) +
-        geom_histogram(fill = "black", position = "identity", binwidth = 500, show.legend = FALSE) +
+        geom_histogram(fill = "black", position = "identity", binwidth = 250, show.legend = FALSE) +
         scale_fill_manual(values = my_colors) +
         geom_histogram(
             data = long_df %>% filter(signal < ref_thresh_to_filter_df$mean),
             mapping = aes(fill = group),
-            color = "black", binwidth = 500,
+            color = "black", binwidth = 250,
             show.legend = FALSE
         ) +
         geom_vline(xintercept = round(ref_thresh_to_filter_df$mean), color = "#dd0ea9", linewidth = rel(1.25), linetype = 4) +
@@ -278,7 +278,7 @@ find_filter_thresh <- function(wide_df, filter_threshold = NULL, ref_coords = NU
         scale_fill_manual(values = my_colors) +
         geom_histogram(
             mapping = aes(fill = group),
-            color = "black", binwidth = 500,
+            color = "black", binwidth = 250,
         ) +
         theme_prism(base_size = 12) +
         theme(
