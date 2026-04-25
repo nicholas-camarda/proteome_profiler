@@ -38,8 +38,9 @@ check_command(
     c("-c", shQuote("import pandas, tabula, openpyxl")),
     paste(
         "Missing Python protocol-extraction dependency.",
-        "Install Python requirements with: python3 -m venv .venv && source .venv/bin/activate && python -m pip install -r requirements.txt",
-        "If .venv already exists, activate it with: source .venv/bin/activate"
+        "Install mamba first with: conda install -n base -c conda-forge mamba",
+        "Then create the environment with: mamba env create -f environment.yml",
+        "Then activate the environment with: conda activate proteome-profiler"
     )
 )
 check_command(

@@ -1,3 +1,0 @@
-pandas
-tabula-py
-openpyxl

@@ -11,122 +11,22 @@ Routine users edit one local `.env` file plus their manifest CSV. Users run the 
 
 Rendered output examples are described in [docs/README.md](docs/README.md).
 
-## Quick Start
+## Start Here
 
-### 1. Open Terminal
+The main workflow in this repository is: prepare your inputs, fill in `.env`, validate the setup, then run the R scripts.
 
-On macOS, open **Terminal** from Applications, Spotlight, or Launchpad.
+For most collaborators, `replicate` mode is the right default because it uses a manifest and biological replicates. Use `exploratory` mode only when you do not have enough replicates for inferential testing.
 
-### 2. Clone The Repository
+## What You Need For A Real Analysis
 
-Copy and paste:
+Before editing `.env`, gather these files:
 
-```bash
-git clone https://github.com/nicholas-camarda/proteome_profiler.git
-cd proteome_profiler
-```
+- your LI-COR Excel workbooks
+- a protocol workbook that maps array coordinates to analytes
+- the protocol PDF if you need to extract the protocol workbook
+- a manifest CSV if you are running `replicate` mode
 
-### 3. Install Dependencies
-
-Install the R packages:
-
-```bash
-Rscript scripts/install_packages.R
-```
-
-Create a local Python environment and install the Python packages used for protocol-table extraction:
-
-```bash
-python3 -m venv .venv
-source .venv/bin/activate
-python -m pip install -r requirements.txt
-```
-
-Run the remaining commands from the same Terminal window so this `.venv` stays active. If you open a new Terminal window later, run `source .venv/bin/activate` again before running setup or analysis scripts.
-
-The protocol PDF extractor uses `tabula-py`, which requires Java. Confirm Java is available:
-
-```bash
-java -version
-```
-
-If that command says Java is missing, install a Java runtime on macOS with Homebrew:
-
-```bash
-brew install --cask temurin
-```
-
-Then run `java -version` again.
-
-### 4. Create A Local Run Sheet
-
-Copy the example `.env` file:
-
-```bash
-cp .env.example .env
-```
-
-Open `.env` in a text editor and edit it for the analysis you want to run.
-
-Do not commit `.env`. It is ignored by git because it contains local paths and run settings.
-
-### 5. Create The Demo Inputs
-
-The example `.env` is configured for a small generated demo dataset. Create it with:
-
-```bash
-Rscript scripts/setup/create_demo_data.R
-```
-
-### 6. Check Setup
-
-Run setup validation before running the analysis:
-
-```bash
-Rscript scripts/check_setup.R
-```
-
-This checks the `.env` file, required packages, protocol files, manifest columns, workbook paths, workbook sheets, and output folder writability.
-
-### 7. Run The Analysis
-
-Review low-signal threshold diagnostics:
-
-```bash
-Rscript scripts/find_ref_thresh.R
-```
-
-This writes threshold-diagnostic outputs under:
-
-```text
-PROTEOME_PROFILER_RUNTIME_ROOT/output/<user>/<slug>/threshold_diagnostics/
-```
-
-Then, run the main analysis:
-
-```bash
-Rscript scripts/main.R
-```
-
-For replicate-aware analyses, open this workbook first:
-
-```text
-PROTEOME_PROFILER_RUNTIME_ROOT/output/<user>/<slug>/inferential_results/comparison_workbook.xlsx
-```
-
-Use `inferential_results/run_index.tsv` when you need exact file paths for every generated table and plot.
-
-Create selected-analyte follow-up plots if `PROTEOME_PROFILER_SHORTLIST_COORDS` is set in `.env`:
-
-```bash
-Rscript scripts/select-analytes-analysis.R
-```
-
-Selected-analyte coordinates are optional. `find_ref_thresh.R` and `main.R` do not require them.
-
-## Recommended File Layout
-
-Use this layout for a project:
+Use this layout inside the repository so the example paths below work directly:
 
 ```text
 proteome_profiler/
@@ -153,6 +53,167 @@ Relative paths in `.env` and the manifest are resolved against:
 ```
 
 Absolute paths are also allowed.
+
+## Run Your Own Analysis
+
+### 1. Open Terminal
+
+On macOS, open **Terminal** from Applications, Spotlight, or Launchpad.
+
+### 2. Clone The Repository
+
+```bash
+git clone https://github.com/nicholas-camarda/proteome_profiler.git
+cd proteome_profiler
+```
+
+### 3. Install R Dependencies
+
+```bash
+Rscript scripts/install_packages.R
+```
+
+### 4. Install Mamba
+
+`mamba` is required for the Python environment used by the protocol-table extractor.
+
+If you do not already have Homebrew, install it first:
+
+```bash
+/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+```
+
+After that finishes, close Terminal, open a new Terminal window, and confirm Homebrew is available:
+
+```bash
+brew --version
+```
+
+Then install Miniforge:
+
+```bash
+brew install --cask miniforge
+```
+
+Initialize Conda for your shell:
+
+```bash
+conda init --all
+```
+
+Then close Terminal, open a new Terminal window, and confirm `mamba` is available:
+
+```bash
+mamba --version
+```
+
+If you already have Conda but not `mamba`, install it into your base Conda setup:
+
+```bash
+conda install -n base -c conda-forge mamba
+```
+
+### 5. Create The Conda Environment
+
+```bash
+mamba env create -f environment.yml
+conda activate proteome-profiler
+```
+
+Run the remaining commands from the same Terminal window so this Conda environment stays active. If you open a new Terminal window later, run `conda activate proteome-profiler` again before running setup or analysis scripts.
+
+### 6. Confirm Java Is Available
+
+The protocol PDF extractor uses `tabula-py`, which requires Java.
+
+```bash
+java -version
+```
+
+If that command says Java is missing:
+
+```bash
+brew install --cask temurin
+java -version
+```
+
+### 7. Put Your Input Files In Place
+
+Put your workbook files under `workbooks/`, your manifest under `manifests/`, and your protocol files under `protocols/`.
+
+If you already have a protocol workbook, use it directly. If you only have the vendor PDF, the repository can extract the analyte table later.
+
+### 8. Create And Edit `.env`
+
+Start from the template:
+
+```bash
+cp .env.example .env
+```
+
+Then open `.env` and replace the example values with your own analysis settings, input paths, treatment labels, and comparisons.
+
+Do not commit `.env`. It is ignored by git because it contains local paths and run settings.
+
+### 9. Check Setup
+
+Run setup validation before running the analysis:
+
+```bash
+Rscript scripts/check_setup.R
+```
+
+This checks the `.env` file, required packages, protocol files, manifest columns, workbook paths, workbook sheets, and output folder writability.
+
+### 10. Run Threshold Diagnostics
+
+```bash
+Rscript scripts/find_ref_thresh.R
+```
+
+This writes threshold-diagnostic outputs under:
+
+```text
+PROTEOME_PROFILER_RUNTIME_ROOT/output/<user>/<slug>/threshold_diagnostics/
+```
+
+### 11. Run The Main Analysis
+
+```bash
+Rscript scripts/main.R
+```
+
+For replicate-aware analyses, open this workbook first:
+
+```text
+PROTEOME_PROFILER_RUNTIME_ROOT/output/<user>/<slug>/inferential_results/comparison_workbook.xlsx
+```
+
+Use `inferential_results/run_index.tsv` when you need exact file paths for every generated table and plot.
+
+### 12. Run Optional Selected-Analyte Follow-Up
+
+Run this only if `PROTEOME_PROFILER_SHORTLIST_COORDS` is set in `.env`:
+
+```bash
+Rscript scripts/select-analytes-analysis.R
+```
+
+Selected-analyte coordinates are optional. `find_ref_thresh.R` and `main.R` do not require them.
+
+## Optional Demo Run
+
+The demo is only for checking that the repository runs end to end. It is not the main workflow for collaborator data.
+
+If you want to test the repository before configuring your real analysis:
+
+```bash
+cp .env.example .env
+Rscript scripts/setup/create_demo_data.R
+Rscript scripts/check_setup.R
+Rscript scripts/find_ref_thresh.R
+Rscript scripts/main.R
+```
 
 ## The `.env` File
 
